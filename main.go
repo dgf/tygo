@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -35,12 +36,14 @@ const (
 
 func (s Status) Color() string {
 	switch s {
+	case Active:
+		return StyleActive
 	case Failed:
 		return StyleFailed
 	case Passed:
 		return StylePassed
-	case Active:
-		return StyleActive
+	case Queued:
+		return ""
 	default:
 		return ""
 	}
@@ -111,6 +114,7 @@ func CalcResults(duration time.Duration, grid Grid) Result {
 			}
 
 			totalKeysPressed += len(cell.Inputs)
+
 			for _, i := range cell.Inputs {
 				if i == cell.Rune {
 					correctKeysPressed += 1
@@ -196,9 +200,7 @@ func WeightedRandom(amount int, words []string) []string {
 	return result
 }
 
-func LoadFile(lang string) []string {
-	fileName := fmt.Sprintf("%s.json", lang)
-
+func LoadFile(fileName string) []string {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
 		panic(err)
@@ -217,6 +219,19 @@ func LoadFile(lang string) []string {
 	return lf.Words
 }
 
+var (
+	fileName  string
+	termCols  int
+	wordCount int
+)
+
+func init() {
+	flag.StringVar(&fileName, "file", "english_1k.json", "vocabulary JSON file with 'words' list")
+	flag.IntVar(&wordCount, "count", 20, "number of words to include in the typing test")
+	flag.IntVar(&termCols, "width", 50, "display width for the typing text")
+	flag.Parse()
+}
+
 func main() {
 	in := os.Stdin
 	inFd := int(in.Fd())
@@ -224,6 +239,7 @@ func main() {
 	if !term.IsTerminal(inFd) {
 		fmt.Fprintln(os.Stderr, "Use a termnial (requires a TTY)")
 		os.Exit(1)
+
 		return
 	}
 
@@ -231,6 +247,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
 		os.Exit(2)
+
 		return
 	}
 
@@ -243,10 +260,10 @@ func main() {
 		os.Exit(0)
 	}()
 
-	words := LoadFile("english_1k")
-	test := WeightedRandom(10, words)
-	lines := ToLines(29, test)
-	grid := ToGrid(30, lines)
+	words := LoadFile(fileName)
+	test := WeightedRandom(wordCount, words)
+	lines := ToLines(termCols-1, test)
+	grid := ToGrid(termCols, lines)
 
 	row := 0
 	col := 0
