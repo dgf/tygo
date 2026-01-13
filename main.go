@@ -75,17 +75,16 @@ func (g Grid) String() string {
 	sb := strings.Builder{}
 
 	for _, row := range g {
-		for c, cell := range row {
-			if cell == nil {
-				_, _ = sb.WriteString("#")
-			} else if c == len(row)-1 {
-				_, _ = sb.WriteString("\r\n")
+		cells := make([]string, len(row))
 
-				break
-			} else {
-				_, _ = sb.WriteString(cell.String())
+		for c, cell := range row {
+			if cell != nil {
+				cells[c] = cell.String()
 			}
 		}
+
+		_, _ = sb.WriteString(strings.Join(cells, " "))
+		_, _ = sb.WriteString("\r\n")
 	}
 
 	return sb.String()
@@ -117,7 +116,7 @@ func CalcResults(duration time.Duration, grid Grid) Result {
 
 			for _, i := range cell.Inputs {
 				if i == cell.Rune {
-					correctKeysPressed += 1
+					correctKeysPressed++
 				}
 			}
 		}
@@ -125,6 +124,7 @@ func CalcResults(duration time.Duration, grid Grid) Result {
 
 	wpm := (float64(totalKeysPressed / 5)) / duration.Minutes()
 	accuracy := float64(correctKeysPressed) / float64(totalKeysPressed)
+
 	return Result{
 		Duration:               duration,
 		WordsPerMinute:         int(wpm),
@@ -140,15 +140,16 @@ func ToGrid(cols int, wordLines [][][]rune) Grid {
 		grid[l] = make([]*Cell, cols)
 
 		lc := 0
+
 		for w, word := range line {
 			for _, r := range word {
 				grid[l][lc] = &Cell{Rune: r}
-				lc += 1
+				lc++
 			}
 
 			if w < len(line)-1 || l < len(grid)-1 {
 				grid[l][lc] = &Cell{Rune: ' '}
-				lc += 1
+				lc++
 			}
 		}
 	}
@@ -190,7 +191,8 @@ func WeightedRandom(amount int, words []string) []string {
 
 		calls := 0
 		s := sort.Search(count, func(c int) bool {
-			calls += 1
+			calls++
+
 			return ((c+1)*(c+2))/2 >= n
 		})
 
@@ -211,6 +213,7 @@ func LoadFile(fileName string) []string {
 	}
 
 	var lf languageFile
+
 	err = json.Unmarshal(data, &lf)
 	if err != nil {
 		panic(err)
@@ -268,6 +271,7 @@ func main() {
 	row := 0
 	col := 0
 	out := os.Stdout
+
 	for _, row := range grid {
 		for c, cell := range row {
 			if cell == nil || c == len(row)-1 {
@@ -283,10 +287,11 @@ func main() {
 	_, _ = fmt.Fprint(out, CSI+strconv.Itoa(len(grid))+"A\r")
 
 	var startTime time.Time
+
 	for {
 		buf := make([]byte, 4)
 
-		n, err := in.Read(buf[:])
+		n, err := in.Read(buf)
 		if err != nil {
 			return // stdin closed > time to leave
 		}
@@ -335,18 +340,18 @@ func main() {
 
 			_, _ = fmt.Fprint(out, cell.Render())
 
-			col += 1
+			col++
 			if col == len(grid[row]) || grid[row][col] == nil {
 				if row < len(grid)-1 {
 					_, _ = fmt.Fprint(out, "\r\n")
-					row += 1
 					col = 0
+					row++
 
 					continue
 				}
 
 				duration := time.Since(startTime)
-				fmt.Print("\r\nResult: " + CalcResults(duration, grid).String() + "\r\n")
+				fmt.Fprint(out, "\r\nResult: "+CalcResults(duration, grid).String()+"\r\n")
 
 				return
 			}
