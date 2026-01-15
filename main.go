@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"sort"
@@ -222,20 +223,45 @@ func LoadFile(fileName string) []string {
 	return lf.Words
 }
 
+func PrintGrid(out io.Writer, grid Grid) {
+	for _, row := range grid {
+		for c, cell := range row {
+			if cell == nil || c == len(row)-1 {
+				_, _ = fmt.Fprint(out, "\r\n")
+
+				break
+			}
+
+			_, _ = fmt.Fprint(out, cell.Render())
+		}
+	}
+
+	_, _ = fmt.Fprint(out, CSI+strconv.Itoa(len(grid))+"A\r")
+}
+
 var (
 	fileName  string
 	termCols  int
 	wordCount int
 )
 
+func NewGrid(words []string) Grid {
+	test := WeightedRandom(wordCount, words)
+	lines := ToLines(termCols-1, test)
+	grid := ToGrid(termCols, lines)
+
+	return grid
+}
+
 func init() {
 	flag.StringVar(&fileName, "file", "english_1k.json", "vocabulary JSON file with 'words' list")
 	flag.IntVar(&wordCount, "count", 20, "number of words to include in the typing test")
 	flag.IntVar(&termCols, "width", 50, "display width for the typing text")
-	flag.Parse()
 }
 
 func main() {
+	flag.Parse()
+
 	in := os.Stdin
 	inFd := int(in.Fd())
 
@@ -264,27 +290,14 @@ func main() {
 	}()
 
 	words := LoadFile(fileName)
-	test := WeightedRandom(wordCount, words)
-	lines := ToLines(termCols-1, test)
-	grid := ToGrid(termCols, lines)
+	out := os.Stdout
 
 	row := 0
 	col := 0
-	out := os.Stdout
+	done := false
 
-	for _, row := range grid {
-		for c, cell := range row {
-			if cell == nil || c == len(row)-1 {
-				_, _ = fmt.Fprint(out, "\r\n")
-
-				break
-			}
-
-			_, _ = fmt.Fprint(out, cell.Render())
-		}
-	}
-
-	_, _ = fmt.Fprint(out, CSI+strconv.Itoa(len(grid))+"A\r")
+	grid := NewGrid(words)
+	PrintGrid(out, grid)
 
 	var startTime time.Time
 
@@ -319,6 +332,31 @@ func main() {
 			continue
 		}
 
+		if done {
+			// Escape to quit after a test
+			if n == 1 && buf[0] == 27 {
+				_, _ = fmt.Fprint(out, CSI+"1A")
+				_, _ = fmt.Fprint(out, CSI+"2K")
+
+				return
+			}
+
+			// Enter to start the next test
+			if n == 1 && buf[0] == 13 {
+				row = 0
+				col = 0
+				done = false
+
+				_, _ = fmt.Fprint(out, CSI+"1A")
+				_, _ = fmt.Fprint(out, CSI+"2K---\r\n")
+
+				grid = NewGrid(words)
+				PrintGrid(out, grid)
+			}
+
+			continue // ignore all other inputs
+		}
+
 		if utf8.FullRune(buf) && buf[0] > 31 {
 			r, _ := utf8.DecodeRune(buf)
 
@@ -351,9 +389,13 @@ func main() {
 				}
 
 				duration := time.Since(startTime)
-				fmt.Fprint(out, "\r\nResult: "+CalcResults(duration, grid).String()+"\r\n")
+				result := CalcResults(duration, grid).String()
 
-				return
+				done = true
+				startTime = time.Time{}
+
+				fmt.Fprint(out, "\r\nResult: "+result+"\r\n")
+				fmt.Fprint(out, "\r\n[ENTER] next or [ESC] to quit\r\n")
 			}
 		}
 	}
