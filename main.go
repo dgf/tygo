@@ -16,16 +16,6 @@ import (
 	"golang.org/x/term"
 )
 
-const (
-	CSI           = "\033["
-	Reset         = CSI + "0m"
-	RestoreCursor = CSI + "u"
-	SaveCursor    = CSI + "s"
-	StyleActive   = CSI + "7m"
-	StyleFailed   = CSI + "38;5;197m"
-	StylePassed   = CSI + "2m"
-)
-
 type Status int
 
 const (
@@ -35,35 +25,10 @@ const (
 	Active
 )
 
-func (s Status) Color() string {
-	switch s {
-	case Active:
-		return StyleActive
-	case Failed:
-		return StyleFailed
-	case Passed:
-		return StylePassed
-	case Queued:
-		return ""
-	default:
-		return ""
-	}
-}
-
 type Cell struct {
 	Inputs []rune
 	Rune   rune
 	Status Status
-}
-
-func (c *Cell) Render() string {
-	r := c.Rune
-
-	if r == ' ' && c.Status == Failed {
-		r = '_'
-	}
-
-	return c.Status.Color() + string(r) + Reset
 }
 
 func (c *Cell) String() string {
@@ -223,6 +188,41 @@ func LoadFile(fileName string) []string {
 	return lf.Words
 }
 
+const (
+	CSI           = "\033["
+	Reset         = CSI + "0m"
+	RestoreCursor = CSI + "u"
+	SaveCursor    = CSI + "s"
+	StyleActive   = CSI + "7m"
+	StyleFailed   = CSI + "38;5;197m"
+	StylePassed   = CSI + "2m"
+)
+
+func ColorCSI(s Status) string {
+	switch s {
+	case Active:
+		return StyleActive
+	case Failed:
+		return StyleFailed
+	case Passed:
+		return StylePassed
+	case Queued:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func PrintCell(out io.Writer, c *Cell) {
+	r := c.Rune
+
+	if r == ' ' && c.Status == Failed {
+		r = '_'
+	}
+
+	_, _ = fmt.Fprint(out, ColorCSI(c.Status)+string(r)+Reset)
+}
+
 func PrintGrid(out io.Writer, grid Grid) {
 	for _, row := range grid {
 		for c, cell := range row {
@@ -232,7 +232,7 @@ func PrintGrid(out io.Writer, grid Grid) {
 				break
 			}
 
-			_, _ = fmt.Fprint(out, cell.Render())
+			PrintCell(out, cell)
 		}
 	}
 
@@ -245,7 +245,7 @@ var (
 	wordCount int
 )
 
-func NewGrid(words []string) Grid {
+func NextGrid(words []string) Grid {
 	test := WeightedRandom(wordCount, words)
 	lines := ToLines(termCols-1, test)
 	grid := ToGrid(termCols, lines)
@@ -296,7 +296,7 @@ func main() {
 	col := 0
 	done := false
 
-	grid := NewGrid(words)
+	grid := NextGrid(words)
 	PrintGrid(out, grid)
 
 	var startTime time.Time
@@ -324,8 +324,8 @@ func main() {
 				prev := grid[row][col]
 				prev.Status = Active
 				_, _ = fmt.Fprint(out, CSI+"1D")
-				_, _ = fmt.Fprint(out, prev.Render())
-				_, _ = fmt.Fprint(out, cell.Render())
+				PrintCell(out, prev)
+				PrintCell(out, cell)
 				_, _ = fmt.Fprint(out, CSI+"2D")
 			}
 
@@ -350,7 +350,7 @@ func main() {
 				_, _ = fmt.Fprint(out, CSI+"1A")
 				_, _ = fmt.Fprint(out, CSI+"2K---\r\n")
 
-				grid = NewGrid(words)
+				grid = NextGrid(words)
 				PrintGrid(out, grid)
 			}
 
@@ -376,7 +376,7 @@ func main() {
 				cell.Status = Failed
 			}
 
-			_, _ = fmt.Fprint(out, cell.Render())
+			PrintCell(out, cell)
 
 			col++
 			if col == len(grid[row]) || grid[row][col] == nil {
