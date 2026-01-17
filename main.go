@@ -5,14 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/dgf/tygo/internal/gen"
 	"golang.org/x/term"
 )
 
@@ -147,27 +146,6 @@ func ToLines(cols int, words []string) [][][]rune {
 	return lines
 }
 
-func WeightedRandom(amount int, words []string) []string {
-	result := make([]string, amount)
-	count := len(words)
-	sum := (count * (count + 1)) / 2
-
-	for a := range amount {
-		n := rand.Intn(sum)
-
-		calls := 0
-		s := sort.Search(count, func(c int) bool {
-			calls++
-
-			return ((c+1)*(c+2))/2 >= n
-		})
-
-		result[a] = words[count-s-1]
-	}
-
-	return result
-}
-
 func LoadFile(fileName string) []string {
 	data, err := os.ReadFile(fileName)
 	if err != nil {
@@ -246,7 +224,7 @@ var (
 )
 
 func NextGrid(words []string) Grid {
-	test := WeightedRandom(wordCount, words)
+	test := gen.WeightedRandomList(wordCount, words)
 	lines := ToLines(termCols-1, test)
 	grid := ToGrid(termCols, lines)
 
