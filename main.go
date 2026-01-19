@@ -221,11 +221,16 @@ var (
 	fileName    string
 	termCols    int
 	wordCount   int
+	numbers     bool
 	punctuation bool
 )
 
 func NextGrid(words []string) Grid {
 	test := gen.WeightedRandomList(wordCount, words)
+
+	if numbers {
+		test = gen.WithNumbers(test)
+	}
 
 	if punctuation {
 		test = gen.PunctuationMarks(test)
@@ -241,6 +246,7 @@ func init() {
 	flag.StringVar(&fileName, "file", "english_1k.json", "vocabulary JSON file with 'words' list")
 	flag.IntVar(&wordCount, "count", 20, "number of words to include in the typing test")
 	flag.IntVar(&termCols, "width", 50, "display width for the typing text")
+	flag.BoolVar(&numbers, "nums", false, "enable number mode")
 	flag.BoolVar(&punctuation, "punct", false, "enable punctuation marks")
 }
 
