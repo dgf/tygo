@@ -6,29 +6,47 @@ import (
 	"time"
 )
 
-var randomgen = rand.New(rand.NewSource(time.Now().UnixNano()))
+var randGen = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func RandomInt(n int) int {
-	return randomgen.Intn(n)
-}
+func Weighted[E comparable](amount int, distributions map[E]int) []E {
+	type distSum struct {
+		dist E
+		sum  int
+	}
 
-func WeightedRandomList(amount int, words []string) []string {
-	result := make([]string, amount)
-	count := len(words)
-	sum := (count * (count + 1)) / 2
+	count := len(distributions)
+	result := make([]E, amount)
+	distSums := make([]distSum, count)
+
+	c := 0
+	sum := 0
+
+	for k, v := range distributions {
+		sum += v
+		distSums[c] = distSum{k, sum}
+		c++
+	}
 
 	for a := range amount {
-		n := RandomInt(sum)
+		n := randGen.Intn(sum) + 1
 
-		calls := 0
 		s := sort.Search(count, func(c int) bool {
-			calls++
-
-			return ((c+1)*(c+2))/2 >= n
+			return distSums[c].sum >= n
 		})
 
-		result[a] = words[count-s-1]
+		result[a] = distSums[s].dist
 	}
 
 	return result
+}
+
+func WeightedRandomList(amount int, words []string) []string {
+	count := len(words)
+	dists := make(map[string]int, count)
+
+	for a, w := range words {
+		dists[w] = count - a
+	}
+
+	return Weighted(amount, dists)
 }

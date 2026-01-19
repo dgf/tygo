@@ -218,13 +218,19 @@ func PrintGrid(out io.Writer, grid Grid) {
 }
 
 var (
-	fileName  string
-	termCols  int
-	wordCount int
+	fileName    string
+	termCols    int
+	wordCount   int
+	punctuation bool
 )
 
 func NextGrid(words []string) Grid {
 	test := gen.WeightedRandomList(wordCount, words)
+
+	if punctuation {
+		test = gen.PunctuationMarks(test)
+	}
+
 	lines := ToLines(termCols-1, test)
 	grid := ToGrid(termCols, lines)
 
@@ -235,6 +241,7 @@ func init() {
 	flag.StringVar(&fileName, "file", "english_1k.json", "vocabulary JSON file with 'words' list")
 	flag.IntVar(&wordCount, "count", 20, "number of words to include in the typing test")
 	flag.IntVar(&termCols, "width", 50, "display width for the typing text")
+	flag.BoolVar(&punctuation, "punct", false, "enable punctuation marks")
 }
 
 func main() {
