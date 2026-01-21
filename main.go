@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/dgf/tygo/internal/dict"
 	"github.com/dgf/tygo/internal/gen"
 	"golang.org/x/term"
 )
@@ -146,26 +146,6 @@ func ToLines(cols int, words []string) [][][]rune {
 	return lines
 }
 
-func LoadFile(fileName string) []string {
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		panic(err)
-	}
-
-	type languageFile struct {
-		Words []string `json:"words"`
-	}
-
-	var lf languageFile
-
-	err = json.Unmarshal(data, &lf)
-	if err != nil {
-		panic(err)
-	}
-
-	return lf.Words
-}
-
 const (
 	CSI           = "\033["
 	Reset         = CSI + "0m"
@@ -218,9 +198,14 @@ func PrintGrid(out io.Writer, grid Grid) {
 }
 
 var (
-	fileName    string
-	termCols    int
+	dictParam  string
+	dictionary dict.Dictionary
+	dictTop    int
+
+	fileName string
+
 	wordCount   int
+	termCols    int
 	numbers     bool
 	punctuation bool
 )
@@ -242,8 +227,23 @@ func NextGrid(words []string) Grid {
 	return grid
 }
 
+func Dictionary(name string) dict.Dictionary {
+	switch name {
+	case "german":
+		return dict.German10K
+	case "english":
+		return dict.English10K
+	default:
+		return dict.English10K
+	}
+}
+
 func init() {
-	flag.StringVar(&fileName, "file", "english_1k.json", "vocabulary JSON file with 'words' list")
+	flag.StringVar(&dictParam, "dict", "english", "dictionary to use, available: german, english")
+	flag.IntVar(&dictTop, "top", 100, "top count of words to load from source (dict or file)")
+
+	flag.StringVar(&fileName, "file", "", "vocabulary JSON file with 'words' list")
+
 	flag.IntVar(&wordCount, "count", 20, "number of words to include in the typing test")
 	flag.IntVar(&termCols, "width", 50, "display width for the typing text")
 	flag.BoolVar(&numbers, "nums", false, "enable number mode")
@@ -252,6 +252,8 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	dictionary = Dictionary(dictParam)
 
 	in := os.Stdin
 	inFd := int(in.Fd())
@@ -280,7 +282,13 @@ func main() {
 		os.Exit(0)
 	}()
 
-	words := LoadFile(fileName)
+	var words []string
+	if len(fileName) > 0 {
+		words = dict.LoadFile(fileName)
+	} else {
+		words = dict.LoadDict(dictionary, dictTop)
+	}
+
 	out := os.Stdout
 
 	row := 0
