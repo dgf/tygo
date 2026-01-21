@@ -348,6 +348,20 @@ func main() {
 			continue // ignore all other inputs
 		}
 
+		// Tab to start a fresh test
+		if n == 1 && buf[0] == 9 {
+			if row > 0 {
+				_, _ = fmt.Fprint(out, CSI+strconv.Itoa(row)+"A")
+			}
+
+			_, _ = fmt.Fprint(out, "\r"+CSI+"0J")
+
+			row = 0
+			col = 0
+			grid = NextGrid(words)
+			PrintGrid(out, grid)
+		}
+
 		if utf8.FullRune(buf) && buf[0] > 31 {
 			r, _ := utf8.DecodeRune(buf)
 
