@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -257,6 +258,7 @@ func main() {
 
 	in := os.Stdin
 	inFd := int(in.Fd())
+	out := os.Stdout
 
 	if !term.IsTerminal(inFd) {
 		fmt.Fprintln(os.Stderr, "Use a termnial (requires a TTY)")
@@ -274,9 +276,10 @@ func main() {
 	}
 
 	defer func() {
-		err = term.Restore(inFd, termState)
-		if err != nil {
-			panic(err)
+		_ = term.Restore(inFd, termState)
+
+		if r := recover(); r != nil {
+			fmt.Fprintf(out, "%v - %s", r, debug.Stack())
 		}
 
 		os.Exit(0)
@@ -288,8 +291,6 @@ func main() {
 	} else {
 		words = dict.LoadDict(dictionary, dictTop)
 	}
-
-	out := os.Stdout
 
 	row := 0
 	col := 0
