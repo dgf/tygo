@@ -31,6 +31,10 @@ type Cell struct {
 	Status Status
 }
 
+func Enqueue(r rune) *Cell {
+	return &Cell{Rune: r, Status: Queued, Inputs: []rune{}}
+}
+
 func (c *Cell) String() string {
 	return fmt.Sprintf("%d %s %v", c.Status, string(c.Rune), c.Inputs)
 }
@@ -99,25 +103,23 @@ func CalcResults(duration time.Duration, grid Grid) Result {
 	}
 }
 
-func ToGrid(cols int, wordLines [][][]rune) Grid {
+func ToGrid(wordLines [][][]rune) Grid {
 	grid := make(Grid, len(wordLines))
 
 	for l, line := range wordLines {
-		grid[l] = make([]*Cell, cols)
-
-		lc := 0
+		lcs := []*Cell{}
 
 		for w, word := range line {
 			for _, r := range word {
-				grid[l][lc] = &Cell{Rune: r}
-				lc++
+				lcs = append(lcs, Enqueue(r))
 			}
 
 			if w < len(line)-1 || l < len(grid)-1 {
-				grid[l][lc] = &Cell{Rune: ' '}
-				lc++
+				lcs = append(lcs, Enqueue(' '))
 			}
 		}
+
+		grid[l] = lcs
 	}
 
 	return grid
@@ -184,17 +186,14 @@ func PrintCell(out io.Writer, c *Cell) {
 
 func PrintGrid(out io.Writer, grid Grid) {
 	for _, row := range grid {
-		for c, cell := range row {
-			if cell == nil || c == len(row)-1 {
-				_, _ = fmt.Fprint(out, "\r\n")
-
-				break
-			}
-
+		for _, cell := range row {
 			PrintCell(out, cell)
 		}
+
+		_, _ = fmt.Fprint(out, "\r\n")
 	}
 
+	// reset cursor to start
 	_, _ = fmt.Fprint(out, CSI+strconv.Itoa(len(grid))+"A\r")
 }
 
@@ -223,7 +222,7 @@ func NextGrid(words []string) Grid {
 	}
 
 	lines := ToLines(termCols-1, test)
-	grid := ToGrid(termCols, lines)
+	grid := ToGrid(lines)
 
 	return grid
 }
