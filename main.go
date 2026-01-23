@@ -7,147 +7,14 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/dgf/tygo/internal/dict"
 	"github.com/dgf/tygo/internal/gen"
+	"github.com/dgf/tygo/internal/test"
 	"golang.org/x/term"
 )
-
-type Status int
-
-const (
-	Queued Status = iota
-	Failed
-	Passed
-	Active
-)
-
-type Cell struct {
-	Inputs []rune
-	Rune   rune
-	Status Status
-}
-
-func Enqueue(r rune) *Cell {
-	return &Cell{Rune: r, Status: Queued, Inputs: []rune{}}
-}
-
-func (c *Cell) String() string {
-	return fmt.Sprintf("%d %s %v", c.Status, string(c.Rune), c.Inputs)
-}
-
-type Grid [][]*Cell
-
-func (g Grid) String() string {
-	sb := strings.Builder{}
-
-	for _, row := range g {
-		cells := make([]string, len(row))
-
-		for c, cell := range row {
-			if cell != nil {
-				cells[c] = cell.String()
-			}
-		}
-
-		_, _ = sb.WriteString(strings.Join(cells, " "))
-		_, _ = sb.WriteString("\r\n")
-	}
-
-	return sb.String()
-}
-
-type Result struct {
-	Duration               time.Duration
-	WordsPerMinute         int // WPM = (total keys pressed / 5) / duration in minutes
-	AccuracyPercent        int // AP = (correct keys pressed / total keys pressed) * 100
-	AdjustedWordsPerMinute int // AWPM = WPM * AP
-}
-
-func (r Result) String() string {
-	return fmt.Sprintf("%s\r\nWPM %4d\r\nACC  %3d%%\r\nAWPM %3d",
-		r.Duration, r.WordsPerMinute, r.AccuracyPercent, r.AdjustedWordsPerMinute)
-}
-
-func CalcResults(duration time.Duration, grid Grid) Result {
-	totalKeysPressed := 0
-	correctKeysPressed := 0
-
-	for _, row := range grid {
-		for _, cell := range row {
-			if cell == nil {
-				break
-			}
-
-			totalKeysPressed += len(cell.Inputs)
-
-			for _, i := range cell.Inputs {
-				if i == cell.Rune {
-					correctKeysPressed++
-				}
-			}
-		}
-	}
-
-	wpm := (float64(totalKeysPressed / 5)) / duration.Minutes()
-	accuracy := float64(correctKeysPressed) / float64(totalKeysPressed)
-
-	return Result{
-		Duration:               duration,
-		WordsPerMinute:         int(wpm),
-		AccuracyPercent:        int(100 * accuracy),
-		AdjustedWordsPerMinute: int(wpm * accuracy),
-	}
-}
-
-func ToGrid(wordLines [][][]rune) Grid {
-	grid := make(Grid, len(wordLines))
-
-	for l, line := range wordLines {
-		lcs := []*Cell{}
-
-		for w, word := range line {
-			for _, r := range word {
-				lcs = append(lcs, Enqueue(r))
-			}
-
-			if w < len(line)-1 || l < len(grid)-1 {
-				lcs = append(lcs, Enqueue(' '))
-			}
-		}
-
-		grid[l] = lcs
-	}
-
-	return grid
-}
-
-func ToLines(cols int, words []string) [][][]rune {
-	lines := [][][]rune{}
-	line := [][]rune{}
-	lc := 0
-
-	for _, word := range words {
-		runes := []rune(word)
-		if cols < lc+len(runes) {
-			lines = append(lines, line)
-			line = [][]rune{}
-			lc = 0
-		}
-
-		line = append(line, runes)
-		lc += len(word) + 1
-	}
-
-	if lc > 0 {
-		lines = append(lines, line)
-	}
-
-	return lines
-}
 
 const (
 	CSI           = "\033["
@@ -159,32 +26,32 @@ const (
 	StylePassed   = CSI + "2m"
 )
 
-func ColorCSI(s Status) string {
+func ColorCSI(s test.Status) string {
 	switch s {
-	case Active:
+	case test.Active:
 		return StyleActive
-	case Failed:
+	case test.Failed:
 		return StyleFailed
-	case Passed:
+	case test.Passed:
 		return StylePassed
-	case Queued:
+	case test.Queued:
 		return ""
 	default:
 		return ""
 	}
 }
 
-func PrintCell(out io.Writer, c *Cell) {
+func PrintCell(out io.Writer, c *test.Cell) {
 	r := c.Rune
 
-	if r == ' ' && c.Status == Failed {
+	if r == ' ' && c.Status == test.Failed {
 		r = '_'
 	}
 
 	_, _ = fmt.Fprint(out, ColorCSI(c.Status)+string(r)+Reset)
 }
 
-func PrintGrid(out io.Writer, grid Grid) {
+func PrintGrid(out io.Writer, grid test.Grid) {
 	for _, row := range grid {
 		for _, cell := range row {
 			PrintCell(out, cell)
@@ -210,21 +77,18 @@ var (
 	punctuation bool
 )
 
-func NextGrid(words []string) Grid {
-	test := gen.WeightedRandomList(wordCount, words)
+func NextGrid(words []string) test.Grid {
+	list := gen.WeightedRandomList(wordCount, words)
 
 	if numbers {
-		test = gen.WithNumbers(test)
+		list = gen.WithNumbers(list)
 	}
 
 	if punctuation {
-		test = gen.PunctuationMarks(test)
+		list = gen.PunctuationMarks(list)
 	}
 
-	lines := ToLines(termCols-1, test)
-	grid := ToGrid(lines)
-
-	return grid
+	return test.ToGrid(termCols-1, list)
 }
 
 func Dictionary(name string) dict.Dictionary {
@@ -317,11 +181,11 @@ func main() {
 		if n == 1 && buf[0] == 127 {
 			if col > 0 {
 				cell := grid[row][col]
-				cell.Status = Queued
+				cell.Status = test.Queued
 				col--
 
 				prev := grid[row][col]
-				prev.Status = Active
+				prev.Status = test.Active
 				_, _ = fmt.Fprint(out, CSI+"1D")
 				PrintCell(out, prev)
 				PrintCell(out, cell)
@@ -384,9 +248,9 @@ func main() {
 
 			cell.Inputs = append(cell.Inputs, r)
 			if r == cell.Rune {
-				cell.Status = Passed
+				cell.Status = test.Passed
 			} else {
-				cell.Status = Failed
+				cell.Status = test.Failed
 			}
 
 			PrintCell(out, cell)
@@ -402,7 +266,7 @@ func main() {
 				}
 
 				duration := time.Since(startTime)
-				result := CalcResults(duration, grid).String()
+				result := test.Calc(duration, grid).String()
 
 				done = true
 				startTime = time.Time{}
