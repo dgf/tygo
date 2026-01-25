@@ -11,11 +11,9 @@ func LoadFile(fileName string) []string {
 		panic(err)
 	}
 
-	type languageFile struct {
+	var lf struct {
 		Words []string `json:"words"`
 	}
-
-	var lf languageFile
 
 	err = json.Unmarshal(data, &lf)
 	if err != nil {

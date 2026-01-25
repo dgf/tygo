@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/dgf/tygo/internal/config"
 	"github.com/dgf/tygo/internal/dict"
 	"github.com/dgf/tygo/internal/gen"
 	"github.com/dgf/tygo/internal/test"
@@ -64,31 +65,30 @@ func PrintGrid(out io.Writer, grid test.Grid) {
 	_, _ = fmt.Fprint(out, CSI+strconv.Itoa(len(grid))+"A\r")
 }
 
-var (
-	dictParam  string
-	dictionary dict.Dictionary
-	dictTop    int
+func NextGrid(cfg config.Config, words []string) test.Grid {
+	list := gen.WeightedRandomList(cfg.WordCount, words)
 
-	fileName string
-
-	wordCount   int
-	termCols    int
-	numbers     bool
-	punctuation bool
-)
-
-func NextGrid(words []string) test.Grid {
-	list := gen.WeightedRandomList(wordCount, words)
-
-	if numbers {
-		list = gen.WithNumbers(list)
+	if cfg.Numbers {
+		list = gen.WithNumbers(cfg.Distribution.Number, list)
 	}
 
-	if punctuation {
-		list = gen.PunctuationMarks(list)
+	if cfg.Punctuation {
+		list = gen.PunctuationMarks(list, map[gen.Punctuation]int{
+			gen.Word:        cfg.Distribution.Word,
+			gen.Period:      cfg.Distribution.Period,
+			gen.Comma:       cfg.Distribution.Comma,
+			gen.Quotation:   cfg.Distribution.Quotation,
+			gen.Question:    cfg.Distribution.Question,
+			gen.Exclamation: cfg.Distribution.Exclamation,
+			gen.Brackets:    cfg.Distribution.Brackets,
+			gen.Braces:      cfg.Distribution.Braces,
+			gen.Parenthesis: cfg.Distribution.Parenthesis,
+			gen.Colon:       cfg.Distribution.Colon,
+			gen.Semicolon:   cfg.Distribution.Semicolon,
+		})
 	}
 
-	return test.ToGrid(termCols-1, list)
+	return test.ToGrid(cfg.Width-1, list)
 }
 
 func Dictionary(name string) dict.Dictionary {
@@ -102,22 +102,49 @@ func Dictionary(name string) dict.Dictionary {
 	}
 }
 
-func init() {
-	flag.StringVar(&dictParam, "dict", "english", "dictionary to use, available: german, english")
-	flag.IntVar(&dictTop, "top", 100, "top count of words to load from source (dict or file)")
-
-	flag.StringVar(&fileName, "file", "", "vocabulary JSON file with 'words' list")
-
-	flag.IntVar(&wordCount, "count", 20, "number of words to include in the typing test")
-	flag.IntVar(&termCols, "width", 50, "display width for the typing text")
-	flag.BoolVar(&numbers, "nums", false, "enable number mode")
-	flag.BoolVar(&punctuation, "punct", false, "enable punctuation marks")
-}
-
 func main() {
+	var (
+		err error
+		cfg config.Config
+	)
+
+	cfg, err = config.LoadUserConfig()
+	if err != nil {
+		cfg = config.Default()
+		_ = config.WriteUserConfig(cfg)
+	}
+
+	var flags struct {
+		dictParam string
+		dictTop   int
+
+		fileName string
+
+		wordCount   int
+		termCols    int
+		numbers     bool
+		punctuation bool
+	}
+
+	flag.StringVar(&flags.dictParam, "dict", cfg.Dictionary, "dictionary to use, available: german, english")
+	flag.IntVar(&flags.dictTop, "top", cfg.TopWords, "top count of words to load from source (dict or file)")
+
+	flag.StringVar(&flags.fileName, "file", "", "vocabulary JSON file with 'words' list")
+
+	flag.IntVar(&flags.wordCount, "count", cfg.WordCount, "number of words to include in the typing test")
+	flag.IntVar(&flags.termCols, "width", cfg.Width, "display width for the typing text")
+	flag.BoolVar(&flags.numbers, "nums", cfg.Numbers, "enable number mode")
+	flag.BoolVar(&flags.punctuation, "punct", cfg.Punctuation, "enable punctuation marks")
+
 	flag.Parse()
 
-	dictionary = Dictionary(dictParam)
+	cfg.Dictionary = flags.dictParam
+	cfg.TopWords = flags.dictTop
+
+	cfg.WordCount = flags.wordCount
+	cfg.Width = flags.termCols
+	cfg.Numbers = flags.numbers
+	cfg.Punctuation = flags.punctuation
 
 	in := os.Stdin
 	inFd := int(in.Fd())
@@ -149,17 +176,17 @@ func main() {
 	}()
 
 	var words []string
-	if len(fileName) > 0 {
-		words = dict.LoadFile(fileName)
+	if len(flags.fileName) > 0 {
+		words = dict.LoadFile(flags.fileName)
 	} else {
-		words = dict.LoadDict(dictionary, dictTop)
+		words = dict.LoadDict(Dictionary(cfg.Dictionary), cfg.TopWords)
 	}
 
 	row := 0
 	col := 0
 	done := false
 
-	grid := NextGrid(words)
+	grid := NextGrid(cfg, words)
 	PrintGrid(out, grid)
 
 	var startTime time.Time
@@ -213,7 +240,7 @@ func main() {
 				_, _ = fmt.Fprint(out, CSI+"1A")
 				_, _ = fmt.Fprint(out, CSI+"2K---\r\n")
 
-				grid = NextGrid(words)
+				grid = NextGrid(cfg, words)
 				PrintGrid(out, grid)
 			}
 
@@ -230,7 +257,7 @@ func main() {
 
 			row = 0
 			col = 0
-			grid = NextGrid(words)
+			grid = NextGrid(cfg, words)
 			PrintGrid(out, grid)
 		}
 

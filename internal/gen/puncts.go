@@ -8,7 +8,7 @@ import (
 type Punctuation int
 
 const (
-	None Punctuation = iota
+	Word Punctuation = iota
 	Period
 	Comma
 	Quotation
@@ -26,7 +26,7 @@ const (
 // Hyphen
 // Ellipsis
 
-func PunctuationMarks(words []string) []string {
+func PunctuationMarks(words []string, dist map[Punctuation]int) []string {
 	result := make([]string, len(words))
 	copy(result, words)
 
@@ -37,26 +37,14 @@ func PunctuationMarks(words []string) []string {
 
 	// last closed
 	lastPunct := Weighted(1, map[Punctuation]int{
-		Period:      5,
-		Question:    4,
-		Exclamation: 3,
+		Period:      dist[Period],
+		Question:    dist[Question],
+		Exclamation: dist[Exclamation],
 	})
 	result[len(result)-1] = applyPunctuation(lastPunct[0], result[len(result)-1])
 
 	// apply random to all between
-	for p, punct := range Weighted(len(words)-2, map[Punctuation]int{
-		None:        84,
-		Period:      12,
-		Comma:       8,
-		Quotation:   3,
-		Question:    4,
-		Exclamation: 3,
-		Brackets:    2,
-		Braces:      2,
-		Parenthesis: 3,
-		Colon:       3,
-		Semicolon:   2,
-	}) {
+	for p, punct := range Weighted(len(words)-2, dist) {
 		result[p+1] = applyPunctuation(punct, result[p+1])
 
 		if slices.Contains([]Punctuation{Period, Question, Exclamation}, punct) {
@@ -71,7 +59,7 @@ func PunctuationMarks(words []string) []string {
 
 func applyPunctuation(punct Punctuation, word string) string {
 	switch punct {
-	case None:
+	case Word:
 		return word
 	case Period:
 		return word + "."
