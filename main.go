@@ -91,6 +91,23 @@ func NextGrid(cfg config.Config, words []string) test.Grid {
 	return test.ToGrid(cfg.Width-1, list)
 }
 
+func ResetGrid(out io.Writer, cfg config.Config, words []string) test.Grid {
+	_, _ = fmt.Fprint(out, "\r"+CSI+"0J")
+
+	grid := NextGrid(cfg, words)
+	PrintGrid(out, grid)
+
+	return grid
+}
+
+func PrintResult(out io.Writer, start time.Time, grid test.Grid) {
+	duration := time.Since(start)
+	result := test.Calc(duration, grid).String()
+
+	fmt.Fprint(out, "\r\nResult: "+result+"\r\n")
+	fmt.Fprint(out, "\r\n[ENTER] next or [ESC] to quit\r\n")
+}
+
 func Dictionary(name string) dict.Dictionary {
 	switch name {
 	case "german":
@@ -118,7 +135,8 @@ func main() {
 		dictParam string
 		dictTop   int
 
-		fileName string
+		fileName   string
+		strictMode bool
 
 		wordCount   int
 		termCols    int
@@ -130,6 +148,7 @@ func main() {
 	flag.IntVar(&flags.dictTop, "top", cfg.TopWords, "top count of words to load from source (dict or file)")
 
 	flag.StringVar(&flags.fileName, "file", "", "vocabulary JSON file with 'words' list")
+	flag.BoolVar(&flags.strictMode, "strict", cfg.StrictMode, "enable strict mode, restarts on every error")
 
 	flag.IntVar(&flags.wordCount, "count", cfg.WordCount, "number of words to include in the typing test")
 	flag.IntVar(&flags.termCols, "width", cfg.Width, "display width for the typing text")
@@ -140,6 +159,8 @@ func main() {
 
 	cfg.Dictionary = flags.dictParam
 	cfg.TopWords = flags.dictTop
+
+	cfg.StrictMode = flags.strictMode
 
 	cfg.WordCount = flags.wordCount
 	cfg.Width = flags.termCols
@@ -189,7 +210,7 @@ func main() {
 	grid := NextGrid(cfg, words)
 	PrintGrid(out, grid)
 
-	var startTime time.Time
+	var start time.Time
 
 	for {
 		buf := make([]byte, 4)
@@ -255,17 +276,20 @@ func main() {
 
 			_, _ = fmt.Fprint(out, "\r"+CSI+"0J")
 
+			grid = ResetGrid(out, cfg, words)
+
 			row = 0
 			col = 0
-			grid = NextGrid(cfg, words)
-			PrintGrid(out, grid)
+			start = time.Time{}
+
+			continue // ignore all other inputs
 		}
 
 		if utf8.FullRune(buf) && buf[0] > 31 {
 			r, _ := utf8.DecodeRune(buf)
 
-			if startTime.IsZero() {
-				startTime = time.Now()
+			if start.IsZero() {
+				start = time.Now()
 			}
 
 			cell := grid[row][col]
@@ -278,6 +302,16 @@ func main() {
 				cell.Status = test.Passed
 			} else {
 				cell.Status = test.Failed
+
+				if cfg.StrictMode {
+					PrintCell(out, cell)
+					PrintResult(out, start, grid)
+
+					done = true
+					start = time.Time{}
+
+					continue // ignore all other inputs
+				}
 			}
 
 			PrintCell(out, cell)
@@ -292,14 +326,10 @@ func main() {
 					continue
 				}
 
-				duration := time.Since(startTime)
-				result := test.Calc(duration, grid).String()
+				PrintResult(out, start, grid)
 
 				done = true
-				startTime = time.Time{}
-
-				fmt.Fprint(out, "\r\nResult: "+result+"\r\n")
-				fmt.Fprint(out, "\r\n[ENTER] next or [ESC] to quit\r\n")
+				start = time.Time{}
 			}
 		}
 	}

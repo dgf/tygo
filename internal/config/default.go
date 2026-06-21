@@ -3,6 +3,7 @@ package config
 func Default() Config {
 	return Config{
 		Dictionary:  "english",
+		StrictMode:  false,
 		TopWords:    100,
 		WordCount:   20,
 		Width:       50,

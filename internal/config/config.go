@@ -17,6 +17,7 @@ type Distribution struct {
 
 type Config struct {
 	Dictionary   string       `json:"dict"`
+	StrictMode   bool         `json:"strict"`
 	TopWords     int          `json:"top"`
 	WordCount    int          `json:"count"`
 	Width        int          `json:"width"`
