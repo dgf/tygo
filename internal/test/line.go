@@ -11,12 +11,12 @@ func ToLines(cols int, words []string) []Line {
 		runes := []rune(word)
 		if cols < lc+len(runes) {
 			lines = append(lines, line)
-			line = [][]rune{}
+			line = Line{}
 			lc = 0
 		}
 
 		line = append(line, runes)
-		lc += len(word) + 1
+		lc += len(runes) + 1
 	}
 
 	if lc > 0 {

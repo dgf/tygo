@@ -44,7 +44,7 @@ func TestToLines(t *testing.T) {
 			[]test.Line{{{'o', 'n', 'e'}, {'t', 'w', 'o'}}, {{'t', 'h', 'r', 'e', 'e'}}},
 		},
 		{
-			"go", 8, // FIXME use rune length! should and could fit in 6 = 1(len) + 1(space) + 4(len)
+			"go", 6,
 			[]string{"", "äöüß", "☠"},
 			[]test.Line{{{''}, {'ä', 'ö', 'ü', 'ß'}}, {{'☠'}}},
 		},
