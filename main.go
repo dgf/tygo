@@ -18,13 +18,12 @@ import (
 )
 
 const (
-	CSI           = "\033["
-	Reset         = CSI + "0m"
-	RestoreCursor = CSI + "u"
-	SaveCursor    = CSI + "s"
-	StyleActive   = CSI + "7m"
-	StyleFailed   = CSI + "38;5;197m"
-	StylePassed   = CSI + "2m"
+	CSI         = "\033["
+	Reset       = CSI + "0m"
+	MoveToStart = "\r" + CSI + "0J"
+	StyleActive = CSI + "7m"
+	StyleFailed = CSI + "38;5;197m"
+	StylePassed = CSI + "2m"
 )
 
 func ColorCSI(s test.Status) string {
@@ -92,7 +91,7 @@ func NextGrid(cfg config.Config, words []string) test.Grid {
 }
 
 func ResetGrid(out io.Writer, cfg config.Config, words []string) test.Grid {
-	_, _ = fmt.Fprint(out, "\r"+CSI+"0J")
+	_, _ = fmt.Fprint(out, MoveToStart)
 
 	grid := NextGrid(cfg, words)
 	PrintGrid(out, grid)
@@ -104,7 +103,7 @@ func PrintResult(out io.Writer, start time.Time, grid test.Grid) {
 	duration := time.Since(start)
 	result := test.Calc(duration, grid).String()
 
-	fmt.Fprint(out, "\r\nResult: "+result+"\r\n")
+	fmt.Fprint(out, "\r\n\r\nResult: "+result+"\r\n")
 	fmt.Fprint(out, "\r\n[ENTER] next or [ESC] to quit\r\n")
 }
 
@@ -305,6 +304,14 @@ func main() {
 
 				if cfg.StrictMode {
 					PrintCell(out, cell)
+
+					row++
+					for row < len(grid) {
+						row++
+
+						fmt.Fprintf(out, "\r\n")
+					}
+
 					PrintResult(out, start, grid)
 
 					done = true
