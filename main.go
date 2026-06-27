@@ -214,16 +214,12 @@ func main() {
 	if !term.IsTerminal(inFd) {
 		fmt.Fprintln(os.Stderr, "Use a termnial (requires a TTY)")
 		os.Exit(1)
-
-		return
 	}
 
 	termState, err := term.MakeRaw(inFd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
 		os.Exit(2)
-
-		return
 	}
 
 	defer func() {
