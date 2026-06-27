@@ -286,45 +286,43 @@ func main() {
 			continue // ignore all other inputs
 		}
 
-		if !done {
-			// Backspace => delete rune
-			if n == 1 && buf[0] == KeyBackspace {
-				if col > 0 {
-					col = RetractRune(out, grid, col, row)
-				}
-
-				continue
+		// Backspace => delete rune
+		if n == 1 && buf[0] == KeyBackspace {
+			if col > 0 {
+				col = RetractRune(out, grid, col, row)
 			}
 
-			// Ctrl+W => delete word
-			if n == 1 && buf[0] == KeyCtrlW {
-				for col > 0 {
-					col = RetractRune(out, grid, col, row)
+			continue
+		}
 
-					if col > 1 && grid[row][col-1].Rune == ' ' {
-						break
-					}
+		// Ctrl+W => delete word
+		if n == 1 && buf[0] == KeyCtrlW {
+			for col > 0 {
+				col = RetractRune(out, grid, col, row)
+
+				if col > 1 && grid[row][col-1].Rune == ' ' {
+					break
 				}
-
-				continue
 			}
 
-			// Tab to start a fresh test
-			if n == 1 && buf[0] == KeyTab {
-				if row > 0 {
-					_, _ = fmt.Fprint(out, CursorUp(row))
-				}
+			continue
+		}
 
-				_, _ = fmt.Fprint(out, MoveToStart)
-
-				grid = ResetGrid(out, cfg, words)
-
-				row = 0
-				col = 0
-				start = time.Time{}
-
-				continue // ignore all other inputs
+		// Tab to start a fresh test
+		if n == 1 && buf[0] == KeyTab {
+			if row > 0 {
+				_, _ = fmt.Fprint(out, CursorUp(row))
 			}
+
+			_, _ = fmt.Fprint(out, MoveToStart)
+
+			grid = ResetGrid(out, cfg, words)
+
+			row = 0
+			col = 0
+			start = time.Time{}
+
+			continue // ignore all other inputs
 		}
 
 		if utf8.FullRune(buf) && buf[0] > MaxControlCode {
