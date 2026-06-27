@@ -18,13 +18,22 @@ import (
 )
 
 const (
-	CSI         = "\033["
-	Reset       = CSI + "0m"
-	MoveToStart = "\r" + CSI + "0J"
-	StyleActive = CSI + "7m"
-	StyleFailed = CSI + "38;5;197m"
-	StylePassed = CSI + "2m"
+	CSI               = "\033["
+	Reset             = CSI + "0m"
+	MoveToStart       = "\r" + CSI + "0J"
+	StyleActive       = CSI + "7m"
+	StyleFailed       = CSI + "38;5;197m"
+	StylePassed       = CSI + "2m"
+	EraseLineToEnd    = CSI + "2K"
 )
+
+func CursorUp(n int) string {
+	return CSI + strconv.Itoa(n) + "A"
+}
+
+func CursorBack(n int) string {
+	return CSI + strconv.Itoa(n) + "D"
+}
 
 func ColorCSI(s test.Status) string {
 	switch s {
@@ -61,7 +70,7 @@ func PrintGrid(out io.Writer, grid test.Grid) {
 	}
 
 	// reset cursor to start
-	_, _ = fmt.Fprint(out, CSI+strconv.Itoa(len(grid))+"A\r")
+	_, _ = fmt.Fprint(out, CursorUp(len(grid))+"\r")
 }
 
 func NextGrid(cfg config.Config, words []string) test.Grid {
@@ -106,10 +115,10 @@ func RetractRune(out io.Writer, grid test.Grid, col, row int) int {
 
 	prev := grid[row][col]
 	prev.Status = test.Active
-	_, _ = fmt.Fprint(out, CSI+"1D")
+	_, _ = fmt.Fprint(out, CursorBack(1))
 	PrintCell(out, prev)
 	PrintCell(out, cell)
-	_, _ = fmt.Fprint(out, CSI+"2D")
+	_, _ = fmt.Fprint(out, CursorBack(2))
 
 	return col
 }
@@ -242,8 +251,8 @@ func main() {
 		if done {
 			// Escape to quit after a test
 			if n == 1 && buf[0] == 27 {
-				_, _ = fmt.Fprint(out, CSI+"1A")
-				_, _ = fmt.Fprint(out, CSI+"2K")
+				_, _ = fmt.Fprint(out, CursorUp(1))
+				_, _ = fmt.Fprint(out, EraseLineToEnd)
 
 				return
 			}
@@ -254,8 +263,8 @@ func main() {
 				col = 0
 				done = false
 
-				_, _ = fmt.Fprint(out, CSI+"1A")
-				_, _ = fmt.Fprint(out, CSI+"2K---\r\n")
+				_, _ = fmt.Fprint(out, CursorUp(1))
+				_, _ = fmt.Fprint(out, EraseLineToEnd+"---\r\n")
 
 				grid = NextGrid(cfg, words)
 				PrintGrid(out, grid)
@@ -290,7 +299,7 @@ func main() {
 			// Tab to start a fresh test
 			if n == 1 && buf[0] == 9 {
 				if row > 0 {
-					_, _ = fmt.Fprint(out, CSI+strconv.Itoa(row)+"A")
+					_, _ = fmt.Fprint(out, CursorUp(row))
 				}
 
 				_, _ = fmt.Fprint(out, MoveToStart)
