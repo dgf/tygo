@@ -169,8 +169,9 @@ func Dictionary(name string) dict.Dictionary {
 
 func main() {
 	var (
-		err error
-		cfg config.Config
+		err      error
+		cfg      config.Config
+		filePath string
 	)
 
 	cfg, err = config.LoadUserConfig()
@@ -179,41 +180,19 @@ func main() {
 		_ = config.WriteUserConfig(cfg)
 	}
 
-	var flags struct {
-		dictParam string
-		dictTop   int
+	flag.StringVar(&cfg.Dictionary, "dict", cfg.Dictionary, "dictionary to use, available: german, english")
 
-		fileName   string
-		strictMode bool
+	flag.IntVar(&cfg.TopWords, "top", cfg.TopWords, "top count of words to load from source (dict or file)")
+	flag.IntVar(&cfg.WordCount, "count", cfg.WordCount, "number of words to include in the typing test")
+	flag.IntVar(&cfg.Width, "width", cfg.Width, "display width for the typing text")
 
-		wordCount   int
-		termCols    int
-		numbers     bool
-		punctuation bool
-	}
+	flag.BoolVar(&cfg.Numbers, "nums", cfg.Numbers, "enable number mode")
+	flag.BoolVar(&cfg.Punctuation, "punct", cfg.Punctuation, "enable punctuation marks")
+	flag.BoolVar(&cfg.StrictMode, "strict", cfg.StrictMode, "enable strict mode, restarts on every error")
 
-	flag.StringVar(&flags.dictParam, "dict", cfg.Dictionary, "dictionary to use, available: german, english")
-	flag.IntVar(&flags.dictTop, "top", cfg.TopWords, "top count of words to load from source (dict or file)")
-
-	flag.StringVar(&flags.fileName, "file", "", "vocabulary JSON file with 'words' list")
-	flag.BoolVar(&flags.strictMode, "strict", cfg.StrictMode, "enable strict mode, restarts on every error")
-
-	flag.IntVar(&flags.wordCount, "count", cfg.WordCount, "number of words to include in the typing test")
-	flag.IntVar(&flags.termCols, "width", cfg.Width, "display width for the typing text")
-	flag.BoolVar(&flags.numbers, "nums", cfg.Numbers, "enable number mode")
-	flag.BoolVar(&flags.punctuation, "punct", cfg.Punctuation, "enable punctuation marks")
+	flag.StringVar(&filePath, "file", "", "vocabulary JSON file with 'words' list")
 
 	flag.Parse()
-
-	cfg.Dictionary = flags.dictParam
-	cfg.TopWords = flags.dictTop
-
-	cfg.StrictMode = flags.strictMode
-
-	cfg.WordCount = flags.wordCount
-	cfg.Width = flags.termCols
-	cfg.Numbers = flags.numbers
-	cfg.Punctuation = flags.punctuation
 
 	in := os.Stdin
 	inFd := int(in.Fd())
@@ -240,8 +219,8 @@ func main() {
 	}()
 
 	var words []string
-	if len(flags.fileName) > 0 {
-		words = dict.LoadFile(flags.fileName)
+	if len(filePath) > 0 {
+		words = dict.LoadFile(filePath)
 	} else {
 		words = dict.LoadDict(Dictionary(cfg.Dictionary), cfg.TopWords)
 	}
