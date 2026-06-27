@@ -99,6 +99,21 @@ func ResetGrid(out io.Writer, cfg config.Config, words []string) test.Grid {
 	return grid
 }
 
+func RetractRune(out io.Writer, grid test.Grid, col, row int) int {
+	cell := grid[row][col]
+	cell.Status = test.Queued
+	col--
+
+	prev := grid[row][col]
+	prev.Status = test.Active
+	_, _ = fmt.Fprint(out, CSI+"1D")
+	PrintCell(out, prev)
+	PrintCell(out, cell)
+	_, _ = fmt.Fprint(out, CSI+"2D")
+
+	return col
+}
+
 func PrintResult(out io.Writer, start time.Time, grid test.Grid) {
 	duration := time.Since(start)
 	result := test.Calc(duration, grid).String()
@@ -224,24 +239,6 @@ func main() {
 			return
 		}
 
-		// Backspace (127)
-		if n == 1 && buf[0] == 127 {
-			if col > 0 {
-				cell := grid[row][col]
-				cell.Status = test.Queued
-				col--
-
-				prev := grid[row][col]
-				prev.Status = test.Active
-				_, _ = fmt.Fprint(out, CSI+"1D")
-				PrintCell(out, prev)
-				PrintCell(out, cell)
-				_, _ = fmt.Fprint(out, CSI+"2D")
-			}
-
-			continue
-		}
-
 		if done {
 			// Escape to quit after a test
 			if n == 1 && buf[0] == 27 {
@@ -267,21 +264,45 @@ func main() {
 			continue // ignore all other inputs
 		}
 
-		// Tab to start a fresh test
-		if n == 1 && buf[0] == 9 {
-			if row > 0 {
-				_, _ = fmt.Fprint(out, CSI+strconv.Itoa(row)+"A")
+		if !done {
+			// Backspace (127) => delete rune
+			if n == 1 && buf[0] == 127 {
+				if col > 0 {
+					col = RetractRune(out, grid, col, row)
+				}
+
+				continue
 			}
 
-			_, _ = fmt.Fprint(out, "\r"+CSI+"0J")
+			// Ctrl+W (23) => delete word
+			if n == 1 && buf[0] == 23 {
+				for col > 0 {
+					col = RetractRune(out, grid, col, row)
 
-			grid = ResetGrid(out, cfg, words)
+					if col > 1 && grid[row][col-1].Rune == ' ' {
+						break
+					}
+				}
 
-			row = 0
-			col = 0
-			start = time.Time{}
+				continue
+			}
 
-			continue // ignore all other inputs
+			// Tab to start a fresh test
+			if n == 1 && buf[0] == 9 {
+				if row > 0 {
+					_, _ = fmt.Fprint(out, CSI+strconv.Itoa(row)+"A")
+				}
+
+				_, _ = fmt.Fprint(out, MoveToStart)
+
+				grid = ResetGrid(out, cfg, words)
+
+				row = 0
+				col = 0
+				start = time.Time{}
+
+				continue // ignore all other inputs
+			}
 		}
 
 		if utf8.FullRune(buf) && buf[0] > 31 {
