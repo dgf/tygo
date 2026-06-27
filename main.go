@@ -246,11 +246,10 @@ func main() {
 	grid := NextGrid(cfg, words)
 	PrintGrid(out, grid)
 
-	var start time.Time
+	start := time.Time{}
+	buf := make([]byte, 4)
 
 	for {
-		buf := make([]byte, 4)
-
 		n, err := in.Read(buf)
 		if err != nil {
 			return // stdin closed > time to leave
@@ -325,8 +324,8 @@ func main() {
 			continue // ignore all other inputs
 		}
 
-		if utf8.FullRune(buf) && buf[0] > MaxControlCode {
-			r, _ := utf8.DecodeRune(buf)
+		if buf[0] > MaxControlCode && utf8.FullRune(buf[:n]) {
+			r, _ := utf8.DecodeRune(buf[:n])
 
 			if start.IsZero() {
 				start = time.Now()
