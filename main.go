@@ -17,14 +17,31 @@ import (
 	"golang.org/x/term"
 )
 
+// Keyboard codes.
 const (
-	CSI               = "\033["
-	Reset             = CSI + "0m"
-	MoveToStart       = "\r" + CSI + "0J"
-	StyleActive       = CSI + "7m"
-	StyleFailed       = CSI + "38;5;197m"
-	StylePassed       = CSI + "2m"
-	EraseLineToEnd    = CSI + "2K"
+	KeyCtrlC       = 3
+	KeyCtrlD       = 4
+	KeyTab         = 9
+	KeyEnter       = 13
+	KeyCtrlW       = 23
+	KeyEscape      = 27
+	KeyBackspace   = 127
+	MaxControlCode = 31
+)
+
+// CSI sequences.
+const (
+	CSI            = "\033["
+	Reset          = CSI + "0m"
+	EraseLineToEnd = CSI + "2K"
+	MoveToStart    = "\r" + CSI + "0J"
+)
+
+// Text styles.
+const (
+	StylePassed = CSI + "2m"
+	StyleActive = CSI + "7m"
+	StyleFailed = CSI + "38;5;197m"
 )
 
 func CursorUp(n int) string {
@@ -243,14 +260,14 @@ func main() {
 			return // stdin closed > time to leave
 		}
 
-		// Ctrl+C (3) or Ctrl+D (4) to exit
-		if n == 1 && (buf[0] == 3 || buf[0] == 4) {
+		// Ctrl+C or Ctrl+D to exit
+		if n == 1 && (buf[0] == KeyCtrlC || buf[0] == KeyCtrlD) {
 			return
 		}
 
 		if done {
 			// Escape to quit after a test
-			if n == 1 && buf[0] == 27 {
+			if n == 1 && buf[0] == KeyEscape {
 				_, _ = fmt.Fprint(out, CursorUp(1))
 				_, _ = fmt.Fprint(out, EraseLineToEnd)
 
@@ -258,7 +275,7 @@ func main() {
 			}
 
 			// Enter to start the next test
-			if n == 1 && buf[0] == 13 {
+			if n == 1 && buf[0] == KeyEnter {
 				row = 0
 				col = 0
 				done = false
@@ -274,8 +291,8 @@ func main() {
 		}
 
 		if !done {
-			// Backspace (127) => delete rune
-			if n == 1 && buf[0] == 127 {
+			// Backspace => delete rune
+			if n == 1 && buf[0] == KeyBackspace {
 				if col > 0 {
 					col = RetractRune(out, grid, col, row)
 				}
@@ -283,8 +300,8 @@ func main() {
 				continue
 			}
 
-			// Ctrl+W (23) => delete word
-			if n == 1 && buf[0] == 23 {
+			// Ctrl+W => delete word
+			if n == 1 && buf[0] == KeyCtrlW {
 				for col > 0 {
 					col = RetractRune(out, grid, col, row)
 
@@ -297,7 +314,7 @@ func main() {
 			}
 
 			// Tab to start a fresh test
-			if n == 1 && buf[0] == 9 {
+			if n == 1 && buf[0] == KeyTab {
 				if row > 0 {
 					_, _ = fmt.Fprint(out, CursorUp(row))
 				}
@@ -314,7 +331,7 @@ func main() {
 			}
 		}
 
-		if utf8.FullRune(buf) && buf[0] > 31 {
+		if utf8.FullRune(buf) && buf[0] > MaxControlCode {
 			r, _ := utf8.DecodeRune(buf)
 
 			if start.IsZero() {
