@@ -37,6 +37,14 @@ const (
 	MoveToStart    = "\r" + CSI + "0J"
 )
 
+// Exit codes.
+const (
+	ExitSuccess          = 0
+	ExitUserError        = 1
+	ExitEnvironmentError = 2
+	ExitInternalError    = 3
+)
+
 // Text styles.
 const (
 	StylePassed = CSI + "2m"
@@ -212,14 +220,14 @@ func main() {
 	out := os.Stdout
 
 	if !term.IsTerminal(inFd) {
-		fmt.Fprintln(os.Stderr, "Use a termnial (requires a TTY)")
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, "Use a terminal (requires a TTY)")
+		os.Exit(ExitUserError)
 	}
 
 	termState, err := term.MakeRaw(inFd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
-		os.Exit(2)
+		os.Exit(ExitEnvironmentError)
 	}
 
 	defer func() {
@@ -227,9 +235,8 @@ func main() {
 
 		if r := recover(); r != nil {
 			fmt.Fprintf(out, "%v - %s", r, debug.Stack())
+			os.Exit(ExitInternalError)
 		}
-
-		os.Exit(0)
 	}()
 
 	var words []string
