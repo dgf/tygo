@@ -35,7 +35,7 @@ func PunctuationMarks(words []string, dist map[Punctuation]int) []string {
 	result[0] = string(first)
 
 	// last closed
-	lastPunct := Weighted(1, map[Punctuation]int{
+	lastPunct := SampleWeightedDist(1, map[Punctuation]int{
 		Period:      dist[Period],
 		Question:    dist[Question],
 		Exclamation: dist[Exclamation],
@@ -43,7 +43,7 @@ func PunctuationMarks(words []string, dist map[Punctuation]int) []string {
 	result[len(result)-1] = applyPunctuation(lastPunct[0], result[len(result)-1])
 
 	// apply random to all between
-	for p, punct := range Weighted(len(words)-2, dist) {
+	for p, punct := range SampleWeightedDist(len(words)-2, dist) {
 		result[p+1] = applyPunctuation(punct, result[p+1])
 
 		if slices.Contains([]Punctuation{Period, Question, Exclamation}, punct) {

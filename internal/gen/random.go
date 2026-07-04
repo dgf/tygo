@@ -2,51 +2,102 @@ package gen
 
 import (
 	"math/rand"
+	"slices"
 	"sort"
 	"time"
 )
 
 var randGen = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func Weighted[E comparable](amount int, distributions map[E]int) []E {
-	type distSum struct {
-		dist E
-		sum  int64
+type distRange[E comparable] struct {
+	value   E
+	prevCum int64
+	weight  int
+	cumSum  int64
+}
+
+func mapRanges[E comparable](dists map[E]int) (int64, []distRange[E]) {
+	count := len(dists)
+	ranges := make([]distRange[E], count)
+
+	idx := 0
+	cumSum := int64(0)
+
+	for value, weight := range dists {
+		prevCum := cumSum
+		cumSum += int64(weight)
+		ranges[idx] = distRange[E]{value, prevCum, weight, cumSum}
+		idx++
 	}
 
-	count := len(distributions)
-	result := make([]E, amount)
-	distSums := make([]distSum, count)
+	return cumSum, ranges
+}
 
-	c := 0
-	sum := int64(0)
+func SampleWeighted[E comparable](count, windowSize int, dists map[E]int) []E {
+	result := make([]E, count)
+	sum, ranges := mapRanges(dists)
 
-	for k, v := range distributions {
-		sum += int64(v)
-		distSums[c] = distSum{k, sum}
-		c++
+	if windowSize >= len(ranges) {
+		windowSize = min(5, len(ranges)/2)
 	}
 
-	for a := range amount {
-		n := randGen.Int63n(sum) + 1
+	ridx := 0
+	recent := make([]distRange[E], windowSize)
 
-		s := sort.Search(count, func(c int) bool {
-			return distSums[c].sum >= n
+	for i := range count {
+		var (
+			recentWeight int64
+			recentSorted []distRange[E]
+		)
+
+		if windowSize > 0 {
+			for _, r := range recent {
+				recentWeight += int64(r.weight)
+			}
+
+			recentSorted = slices.Clone(recent)
+			sort.Slice(recentSorted, func(i int, j int) bool {
+				return recentSorted[i].prevCum < recentSorted[j].prevCum
+			})
+		}
+
+		n := randGen.Int63n(sum-recentWeight) + 1
+
+		if windowSize > 0 {
+			for _, r := range recentSorted {
+				if n > r.prevCum {
+					n += int64(r.weight)
+				}
+			}
+		}
+
+		s := sort.Search(len(ranges), func(idx int) bool {
+			return ranges[idx].cumSum >= n
 		})
 
-		result[a] = distSums[s].dist
+		selected := ranges[s]
+		result[i] = selected.value
+
+		if windowSize > 0 {
+			recent[ridx] = selected
+			ridx = (ridx + 1) % windowSize
+		}
 	}
 
 	return result
 }
 
-func WeightedRandomList(amount int, words []string) []string {
-	count := len(words)
-	dists := make(map[string]int, count)
+func SampleWeightedList(count, noRepeatWindow int, words []string) []string {
+	weight := len(words)
+	dists := make(map[string]int, weight)
 
-	for a, w := range words {
-		dists[w] = count - a
+	for i, w := range words {
+		dists[w] = weight - i
 	}
 
-	return Weighted(amount, dists)
+	return SampleWeighted(count, noRepeatWindow, dists)
+}
+
+func SampleWeightedDist[E comparable](count int, dist map[E]int) []E {
+	return SampleWeighted(count, 0, dist)
 }

@@ -99,7 +99,7 @@ func PrintGrid(out io.Writer, grid test.Grid) {
 }
 
 func NextGrid(cfg config.Config, words []string) test.Grid {
-	list := gen.WeightedRandomList(cfg.WordCount, words)
+	list := gen.SampleWeightedList(cfg.WordCount, 5, words)
 
 	if cfg.Numbers {
 		list = gen.WithNumbers(cfg.Distribution.Number, list)
