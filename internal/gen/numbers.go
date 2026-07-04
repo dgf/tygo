@@ -2,12 +2,12 @@ package gen
 
 import (
 	"math/rand"
+	"slices"
 	"strconv"
 )
 
 func WithNumbers(weight int, words []string) []string {
-	result := make([]string, len(words))
-	copy(result, words)
+	result := slices.Clone(words)
 
 	for i, b := range Weighted(len(words), map[bool]int{
 		false: 100 - weight,

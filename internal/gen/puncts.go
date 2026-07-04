@@ -27,10 +27,9 @@ const (
 // Ellipsis
 
 func PunctuationMarks(words []string, dist map[Punctuation]int) []string {
-	result := make([]string, len(words))
-	copy(result, words)
+	result := slices.Clone(words)
 
-	// upper first word
+	// Uppercase first word
 	first := []rune(result[0])
 	first[0] = unicode.ToTitle(first[0])
 	result[0] = string(first)
