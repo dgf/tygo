@@ -6,12 +6,12 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
-	"strconv"
 	"time"
 	"unicode/utf8"
 
 	"github.com/dgf/tygo/internal/config"
 	"github.com/dgf/tygo/internal/dict"
+	"github.com/dgf/tygo/internal/display"
 	"github.com/dgf/tygo/internal/gen"
 	"github.com/dgf/tygo/internal/test"
 	"golang.org/x/term"
@@ -29,14 +29,6 @@ const (
 	MaxControlCode = 31
 )
 
-// CSI sequences.
-const (
-	CSI            = "\033["
-	Reset          = CSI + "0m"
-	EraseLineToEnd = CSI + "2K"
-	MoveToStart    = "\r" + CSI + "0J"
-)
-
 // Exit codes.
 const (
 	ExitSuccess          = 0
@@ -44,59 +36,6 @@ const (
 	ExitEnvironmentError = 2
 	ExitInternalError    = 3
 )
-
-// Text styles.
-const (
-	StylePassed = CSI + "2m"
-	StyleActive = CSI + "7m"
-	StyleFailed = CSI + "38;5;197m"
-)
-
-func CursorUp(n int) string {
-	return CSI + strconv.Itoa(n) + "A"
-}
-
-func CursorBack(n int) string {
-	return CSI + strconv.Itoa(n) + "D"
-}
-
-func ColorCSI(s test.Status) string {
-	switch s {
-	case test.Active:
-		return StyleActive
-	case test.Failed:
-		return StyleFailed
-	case test.Passed:
-		return StylePassed
-	case test.Queued:
-		return ""
-	default:
-		return ""
-	}
-}
-
-func PrintCell(out io.Writer, c *test.Cell) {
-	r := c.Rune
-
-	if r == ' ' && c.Status == test.Failed {
-		r = '_'
-	}
-
-	_, _ = fmt.Fprint(out, ColorCSI(c.Status)+string(r)+Reset)
-}
-
-func PrintGrid(out io.Writer, grid test.Grid) {
-	for _, row := range grid {
-		for _, cell := range row {
-			PrintCell(out, cell)
-		}
-
-		_, _ = fmt.Fprint(out, "\r\n")
-	}
-
-	// reset cursor to start
-	_, _ = fmt.Fprint(out, CursorUp(len(grid))+"\r")
-}
 
 func NextGrid(cfg config.Config, words []string) test.Grid {
 	list := gen.SampleWeightedList(cfg.WordCount, 5, words)
@@ -124,15 +63,6 @@ func NextGrid(cfg config.Config, words []string) test.Grid {
 	return test.ToGrid(cfg.Width-1, list)
 }
 
-func ResetGrid(out io.Writer, cfg config.Config, words []string) test.Grid {
-	_, _ = fmt.Fprint(out, MoveToStart)
-
-	grid := NextGrid(cfg, words)
-	PrintGrid(out, grid)
-
-	return grid
-}
-
 func RetractRune(out io.Writer, grid test.Grid, col, row int) int {
 	cell := grid[row][col]
 	cell.Status = test.Queued
@@ -140,20 +70,13 @@ func RetractRune(out io.Writer, grid test.Grid, col, row int) int {
 
 	prev := grid[row][col]
 	prev.Status = test.Active
-	_, _ = fmt.Fprint(out, CursorBack(1))
-	PrintCell(out, prev)
-	PrintCell(out, cell)
-	_, _ = fmt.Fprint(out, CursorBack(2))
+
+	display.CursorBack(out, 1)
+	display.PrintCell(out, prev)
+	display.PrintCell(out, cell)
+	display.CursorBack(out, 2)
 
 	return col
-}
-
-func PrintResult(out io.Writer, start time.Time, grid test.Grid) {
-	duration := time.Since(start)
-	result := test.Calc(duration, grid).String()
-
-	fmt.Fprint(out, "\r\n\r\nResult: "+result+"\r\n")
-	fmt.Fprint(out, "\r\n[ENTER] next or [ESC] to quit\r\n")
 }
 
 func Dictionary(name string) dict.Dictionary {
@@ -230,7 +153,7 @@ func main() {
 	done := false
 
 	grid := NextGrid(cfg, words)
-	PrintGrid(out, grid)
+	display.PrintGrid(out, grid)
 
 	start := time.Time{}
 	buf := make([]byte, 4)
@@ -249,8 +172,7 @@ func main() {
 		if done {
 			// Escape to quit after a test
 			if n == 1 && buf[0] == KeyEscape {
-				_, _ = fmt.Fprint(out, CursorUp(1))
-				_, _ = fmt.Fprint(out, EraseLineToEnd)
+				display.UndoLine(out)
 
 				return
 			}
@@ -260,12 +182,11 @@ func main() {
 				row = 0
 				col = 0
 				done = false
-
-				_, _ = fmt.Fprint(out, CursorUp(1))
-				_, _ = fmt.Fprint(out, EraseLineToEnd+"---\r\n")
-
 				grid = NextGrid(cfg, words)
-				PrintGrid(out, grid)
+
+				display.UndoLine(out)
+				display.PrintLine(out, "---")
+				display.PrintGrid(out, grid)
 			}
 
 			continue // ignore all other inputs
@@ -296,12 +217,11 @@ func main() {
 		// Tab to start a fresh test
 		if n == 1 && buf[0] == KeyTab {
 			if row > 0 {
-				_, _ = fmt.Fprint(out, CursorUp(row))
+				display.CursorUp(out, row)
 			}
 
-			_, _ = fmt.Fprint(out, MoveToStart)
-
-			grid = ResetGrid(out, cfg, words)
+			grid = NextGrid(cfg, words)
+			display.ResetGrid(out, grid)
 
 			row = 0
 			col = 0
@@ -329,16 +249,16 @@ func main() {
 				cell.Status = test.Failed
 
 				if cfg.StrictMode {
-					PrintCell(out, cell)
+					display.PrintCell(out, cell)
 
-					row++
-					for row < len(grid) {
-						row++
-
-						fmt.Fprintf(out, "\r\n")
+					remainRows := len(grid) - row
+					if remainRows > 1 {
+						display.CursorDown(out, remainRows-1)
 					}
 
-					PrintResult(out, start, grid)
+					duration := time.Since(start)
+					result := test.Calc(duration, grid)
+					display.PrintResult(out, result)
 
 					done = true
 					start = time.Time{}
@@ -347,19 +267,22 @@ func main() {
 				}
 			}
 
-			PrintCell(out, cell)
+			display.PrintCell(out, cell)
 
 			col++
 			if col == len(grid[row]) || grid[row][col] == nil {
 				if row < len(grid)-1 {
-					_, _ = fmt.Fprint(out, "\r\n")
+					display.NewLine(out)
+
 					col = 0
 					row++
 
 					continue
 				}
 
-				PrintResult(out, start, grid)
+				duration := time.Since(start)
+				result := test.Calc(duration, grid)
+				display.PrintResult(out, result)
 
 				done = true
 				start = time.Time{}
