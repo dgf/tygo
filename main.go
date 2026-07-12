@@ -1,3 +1,4 @@
+// Tygo is a terminal-based typing test.
 package main
 
 import (

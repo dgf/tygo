@@ -1,3 +1,4 @@
+// Package display renders the typing test grid for a terminal using ANSI escape sequences.
 package display
 
 // CSI sequences.

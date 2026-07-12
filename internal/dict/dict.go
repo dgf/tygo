@@ -1,3 +1,4 @@
+// Package dict provides word lists from embedded dictionaries and JSON files.
 package dict
 
 import (

@@ -1,3 +1,4 @@
+// Package gen provides word list generation with weighted sampling and punctuation.
 package gen
 
 import (

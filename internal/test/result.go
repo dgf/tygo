@@ -1,3 +1,4 @@
+// Package test defines the data structures for a typing test, including grid and result calculation.
 package test
 
 import (
@@ -37,7 +38,7 @@ func Calc(duration time.Duration, grid Grid) Result {
 		}
 	}
 
-	wpm := (float64(totalKeysPressed / 5)) / duration.Minutes()
+	wpm := float64(totalKeysPressed/5) / duration.Minutes()
 	accuracy := float64(correctKeysPressed) / float64(totalKeysPressed)
 
 	return Result{

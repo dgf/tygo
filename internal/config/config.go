@@ -1,3 +1,4 @@
+// Package config provides typing test settings with JSON serialization.
 package config
 
 type Distribution struct {
