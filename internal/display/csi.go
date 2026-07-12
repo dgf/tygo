@@ -3,10 +3,10 @@ package display
 
 // CSI sequences.
 const (
-	CSI            = "\033["
-	Reset          = CSI + "0m"
-	EraseLineToEnd = CSI + "2K"
-	MoveToStart    = CSI + "0J"
+	CSI             = "\033["
+	Reset           = CSI + "0m"
+	EraseLineToEnd  = CSI + "2K"
+	EraseRightBelow = CSI + "0J"
 )
 
 // Text styles.

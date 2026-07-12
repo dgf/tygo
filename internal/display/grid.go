@@ -22,8 +22,8 @@ func PrintGrid(out io.Writer, grid test.Grid) {
 }
 
 func ResetGrid(out io.Writer, grid test.Grid) {
-	_, _ = fmt.Fprint(out, MoveToStart)
 	_, _ = fmt.Fprint(out, "\r")
+	_, _ = fmt.Fprint(out, EraseRightBelow)
 
 	PrintGrid(out, grid)
 }
