@@ -5,10 +5,10 @@ import (
 	"os"
 )
 
-func LoadFile(fileName string) []string {
-	data, err := os.ReadFile(fileName)
+func LoadFile(name string) ([]string, error) {
+	data, err := os.ReadFile(name)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	var lf struct {
@@ -17,8 +17,8 @@ func LoadFile(fileName string) []string {
 
 	err = json.Unmarshal(data, &lf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return lf.Words
+	return lf.Words, nil
 }

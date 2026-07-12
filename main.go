@@ -90,18 +90,45 @@ func Dictionary(name string) dict.Dictionary {
 	}
 }
 
-func main() {
-	var (
-		err      error
-		cfg      config.Config
-		filePath string
-	)
+func MustLoadWords(cfg config.Config, file string) []string {
+	if len(file) == 0 {
+		return dict.LoadDict(Dictionary(cfg.Dictionary), cfg.TopWords)
+	}
 
-	cfg, err = config.LoadUserConfig()
+	words, err := dict.LoadFile(file)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Dictionary load failed: %v\n", err)
+		os.Exit(ExitUserError)
+	}
+
+	return words
+}
+
+func MustMakeRaw(in *os.File) (int, *term.State) {
+	fd := int(in.Fd())
+
+	if !term.IsTerminal(fd) {
+		fmt.Fprintln(os.Stderr, "Use a terminal (requires a TTY)")
+		os.Exit(ExitUserError)
+	}
+
+	termState, err := term.MakeRaw(fd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
+		os.Exit(ExitEnvironmentError)
+	}
+
+	return fd, termState
+}
+
+func main() {
+	cfg, loadErr := config.LoadUserConfig()
+	if loadErr != nil {
 		cfg = config.Default()
 		_ = config.WriteUserConfig(cfg)
 	}
+
+	var file string
 
 	flag.StringVar(&cfg.Dictionary, "dict", cfg.Dictionary, "dictionary to use, available: german, english")
 
@@ -113,40 +140,23 @@ func main() {
 	flag.BoolVar(&cfg.Punctuation, "punct", cfg.Punctuation, "enable punctuation marks")
 	flag.BoolVar(&cfg.StrictMode, "strict", cfg.StrictMode, "enable strict mode, restarts on every error")
 
-	flag.StringVar(&filePath, "file", "", "vocabulary JSON file with 'words' list")
+	flag.StringVar(&file, "file", "", "vocabulary JSON file with 'words' list")
 
 	flag.Parse()
 
 	in := os.Stdin
-	inFd := int(in.Fd())
 	out := os.Stdout
-
-	if !term.IsTerminal(inFd) {
-		fmt.Fprintln(os.Stderr, "Use a terminal (requires a TTY)")
-		os.Exit(ExitUserError)
-	}
-
-	termState, err := term.MakeRaw(inFd)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
-		os.Exit(ExitEnvironmentError)
-	}
+	words := MustLoadWords(cfg, file)
+	fd, oldState := MustMakeRaw(in)
 
 	defer func() {
-		_ = term.Restore(inFd, termState)
+		_ = term.Restore(fd, oldState)
 
 		if r := recover(); r != nil {
 			fmt.Fprintf(out, "%v - %s", r, debug.Stack())
 			os.Exit(ExitInternalError)
 		}
 	}()
-
-	var words []string
-	if len(filePath) > 0 {
-		words = dict.LoadFile(filePath)
-	} else {
-		words = dict.LoadDict(Dictionary(cfg.Dictionary), cfg.TopWords)
-	}
 
 	row := 0
 	col := 0
