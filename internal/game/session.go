@@ -17,7 +17,7 @@ type Session struct {
 	grid     test.Grid
 }
 
-func New(strict bool, grid test.Grid) *Session {
+func NewSession(strict bool, grid test.Grid) *Session {
 	return &Session{
 		grid:     grid,
 		strict:   strict,

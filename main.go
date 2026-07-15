@@ -4,29 +4,16 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"runtime/debug"
-	"unicode/utf8"
 
 	"github.com/dgf/tygo/internal/config"
 	"github.com/dgf/tygo/internal/dict"
 	"github.com/dgf/tygo/internal/display"
 	"github.com/dgf/tygo/internal/game"
-	"github.com/dgf/tygo/internal/gen"
 	"github.com/dgf/tygo/internal/test"
 	"golang.org/x/term"
-)
-
-// Keyboard codes.
-const (
-	KeyCtrlC       = 3
-	KeyCtrlD       = 4
-	KeyTab         = 9
-	KeyEnter       = 13
-	KeyCtrlW       = 23
-	KeyEscape      = 27
-	KeyBackspace   = 127
-	MaxControlCode = 31
 )
 
 // Exit codes.
@@ -79,18 +66,8 @@ func MustMakeRaw(in *os.File) (int, *term.State) {
 	return fd, termState
 }
 
-type Actions struct {
-	Advance     func(*game.Session, rune)
-	Exit        func()
-	Next        func(*game.Session)
-	Print       func(*game.Session)
-	Reset       func(upRows int, session *game.Session)
-	RetractRune func(*game.Session)
-	RetractWord func(*game.Session)
-}
-
-func NewActions(out *os.File) Actions {
-	return Actions{
+func NewActions(out io.Writer) game.Actions {
+	return game.Actions{
 		Advance: func(s *game.Session, r rune) {
 			cell, newline := s.Advance(r)
 
@@ -162,85 +139,6 @@ func NewActions(out *os.File) Actions {
 	}
 }
 
-func NewSession(cfg config.Config, words []string) *game.Session {
-	list := gen.SampleWeightedList(cfg.WordCount, 5, words)
-
-	if cfg.Numbers {
-		list = gen.WithNumbers(cfg.Distribution.Number, list)
-	}
-
-	if cfg.Punctuation {
-		list = gen.PunctuationMarks(list, map[gen.Punctuation]int{
-			gen.Word:        cfg.Distribution.Word,
-			gen.Period:      cfg.Distribution.Period,
-			gen.Comma:       cfg.Distribution.Comma,
-			gen.Quotation:   cfg.Distribution.Quotation,
-			gen.Question:    cfg.Distribution.Question,
-			gen.Exclamation: cfg.Distribution.Exclamation,
-			gen.Brackets:    cfg.Distribution.Brackets,
-			gen.Braces:      cfg.Distribution.Braces,
-			gen.Parenthesis: cfg.Distribution.Parenthesis,
-			gen.Colon:       cfg.Distribution.Colon,
-			gen.Semicolon:   cfg.Distribution.Semicolon,
-		})
-	}
-
-	grid := test.ToGrid(cfg.Width-1, list)
-
-	return game.New(cfg.StrictMode, grid)
-}
-
-func RunInputLoop(in *os.File, cfg config.Config, words []string, act Actions) {
-	buf := make([]byte, 4)
-	session := NewSession(cfg, words)
-
-	act.Print(session)
-
-	for {
-		n, err := in.Read(buf)
-		if err != nil {
-			return // stdin closed > time to leave
-		}
-
-		if buf[0] > MaxControlCode && utf8.FullRune(buf[:n]) {
-			r, _ := utf8.DecodeRune(buf[:n])
-
-			act.Advance(session, r)
-		}
-
-		if buf[0] == KeyCtrlC || buf[0] == KeyCtrlD {
-			return
-		}
-
-		if session.Done() {
-			switch buf[0] {
-			case KeyEscape:
-				act.Exit()
-
-				return
-			case KeyEnter:
-				session = NewSession(cfg, words)
-
-				act.Next(session)
-			}
-
-			continue // ignore all other inputs
-		}
-
-		switch buf[0] {
-		case KeyBackspace:
-			act.RetractRune(session)
-		case KeyCtrlW:
-			act.RetractWord(session)
-		case KeyTab:
-			upRows := session.Row()
-			session = NewSession(cfg, words)
-
-			act.Reset(upRows, session)
-		}
-	}
-}
-
 func main() {
 	cfg, loadErr := config.LoadUserConfig()
 	if loadErr != nil {
@@ -278,5 +176,5 @@ func main() {
 		}
 	}()
 
-	RunInputLoop(in, cfg, words, NewActions(out))
+	game.Run(in, cfg, words, NewActions(out))
 }
