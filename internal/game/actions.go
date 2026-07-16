@@ -1,12 +1,17 @@
 package game
 
-// Actions bundles the input callbacks.
+type (
+	Advance func(*Session, rune)
+	Action  func(*Session)
+	Reset   func(old, session *Session)
+)
+
 type Actions struct {
-	Advance     func(*Session, rune)
-	Exit        func()
-	Next        func(*Session)
-	Print       func(*Session)
-	Reset       func(upRows int, state *Session)
-	RetractRune func(*Session)
-	RetractWord func(*Session)
+	Advance     Advance
+	Exit        Action
+	Next        Action
+	Print       Action
+	Reset       Reset
+	RetractRune Action
+	RetractWord Action
 }

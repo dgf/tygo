@@ -66,76 +66,86 @@ func MustMakeRaw(in *os.File) (int, *term.State) {
 	return fd, termState
 }
 
-func NewActions(out io.Writer) game.Actions {
-	return game.Actions{
-		Advance: func(s *game.Session, r rune) {
-			cell, newline := s.Advance(r)
+func Advance(out io.Writer) game.Advance {
+	return func(s *game.Session, r rune) {
+		cell, br := s.Advance(r)
 
-			if cell != nil {
-				display.PrintCell(out, cell)
+		if cell != nil {
+			display.PrintCell(out, cell)
+		}
+
+		if br {
+			display.NewLine(out)
+		}
+
+		if s.Done() {
+			remainRows := len(s.Grid()) - s.Row()
+			if remainRows > 1 {
+				display.CursorDown(out, remainRows-1)
 			}
 
-			if newline {
-				display.NewLine(out)
+			result := test.Calc(s.Duration(), s.Grid())
+			display.PrintResult(out, result)
+		}
+	}
+}
+
+func Exit(out io.Writer) game.Action {
+	return func(_ *game.Session) {
+		display.UndoLine(out)
+	}
+}
+
+func Next(out io.Writer) game.Action {
+	return func(s *game.Session) {
+		display.UndoLine(out)
+		display.PrintLine(out, "---")
+		display.PrintGrid(out, s.Grid())
+	}
+}
+
+func Print(out io.Writer) game.Action {
+	return func(s *game.Session) {
+		display.PrintGrid(out, s.Grid())
+	}
+}
+
+func Reset(out io.Writer) game.Reset {
+	return func(o, s *game.Session) {
+		if o.Row() > 0 {
+			display.CursorUp(out, o.Row())
+		}
+
+		display.ResetGrid(out, s.Grid())
+	}
+}
+
+func RetractRune(out io.Writer) game.Action {
+	return func(s *game.Session) {
+		curr, next := s.RetractRune()
+
+		if curr != nil {
+			display.CursorBack(out, 1)
+			display.PrintCell(out, curr)
+			display.PrintCell(out, next)
+			display.CursorBack(out, 2)
+		}
+	}
+}
+
+func RetractWord(out io.Writer) game.Action {
+	return func(s *game.Session) {
+		cells := s.RetractWord()
+
+		if len(cells) > 0 {
+			display.CursorBack(out, len(cells)-1)
+
+			for _, c := range cells {
+				display.PrintCell(out, c)
 			}
 
-			if s.Done() {
-				remainRows := len(s.Grid()) - s.Row()
-				if remainRows > 1 {
-					display.CursorDown(out, remainRows-1)
-				}
-
-				result := test.Calc(s.Duration(), s.Grid())
-				display.PrintResult(out, result)
-			}
-		},
-
-		Exit: func() {
-			display.UndoLine(out)
-		},
-
-		Next: func(s *game.Session) {
-			display.UndoLine(out)
-			display.PrintLine(out, "---")
-			display.PrintGrid(out, s.Grid())
-		},
-
-		Print: func(s *game.Session) {
-			display.PrintGrid(out, s.Grid())
-		},
-
-		Reset: func(upRows int, s *game.Session) {
-			if upRows > 0 {
-				display.CursorUp(out, upRows)
-			}
-
-			display.ResetGrid(out, s.Grid())
-		},
-
-		RetractRune: func(s *game.Session) {
-			curr, next := s.RetractRune()
-
-			if curr != nil {
-				display.CursorBack(out, 1)
-				display.PrintCell(out, curr)
-				display.PrintCell(out, next)
-				display.CursorBack(out, 2)
-			}
-		},
-
-		RetractWord: func(s *game.Session) {
-			cells := s.RetractWord()
-
-			if len(cells) > 0 {
-				display.CursorBack(out, len(cells)-1)
-
-				for _, cell := range cells {
-					display.PrintCell(out, cell)
-				}
-
-				display.CursorBack(out, len(cells))
-			}
-		},
+			display.CursorBack(out, len(cells))
+		}
 	}
 }
 
@@ -176,5 +186,13 @@ func main() {
 		}
 	}()
 
-	game.Run(in, cfg, words, NewActions(out))
+	game.Run(in, cfg, words, game.Actions{
+		Advance:     Advance(out),
+		Exit:        Exit(out),
+		Next:        Next(out),
+		Print:       Print(out),
+		Reset:       Reset(out),
+		RetractRune: RetractRune(out),
+		RetractWord: RetractWord(out),
+	})
 }

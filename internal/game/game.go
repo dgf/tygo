@@ -58,7 +58,7 @@ func Run(in io.Reader, cfg config.Config, words []string, act Actions) {
 			if session.Done() {
 				switch buf[0] {
 				case KeyEscape:
-					act.Exit()
+					act.Exit(session)
 
 					return
 				case KeyEnter:
@@ -80,10 +80,9 @@ func Run(in io.Reader, cfg config.Config, words []string, act Actions) {
 
 				continue
 			case KeyTab:
-				upRows := session.Row()
+				old := session
 				session = newGameSession(cfg, words)
-
-				act.Reset(upRows, session)
+				act.Reset(old, session)
 
 				continue
 			}
