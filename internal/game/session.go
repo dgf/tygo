@@ -104,12 +104,12 @@ func (s *Session) RetractRune() (*test.Cell, *test.Cell) {
 	return prev, curr
 }
 
-func (s *Session) RetractWord() []*test.Cell {
-	if s.col < 1 {
-		return []*test.Cell{}
-	}
+func (s *Session) RetractWord() test.Cells {
+	currs := test.Cells{}
 
-	currs := []*test.Cell{}
+	if s.col < 1 {
+		return currs
+	}
 
 	for s.col > 0 {
 		curr := s.grid[s.row][s.col]

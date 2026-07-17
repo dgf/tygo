@@ -38,11 +38,11 @@ func newGameSession(cfg config.Config, words []string) *Session {
 	return NewSession(cfg.StrictMode, grid)
 }
 
-func Run(in io.Reader, cfg config.Config, words []string, act Actions) {
+func Run(in io.Reader, cfg config.Config, words []string, renderer Renderer) {
 	buf := make([]byte, 4)
 	session := newGameSession(cfg, words)
 
-	act.Print(session)
+	renderer.Reset(session.Grid())
 
 	for {
 		n, err := in.Read(buf)
@@ -58,13 +58,13 @@ func Run(in io.Reader, cfg config.Config, words []string, act Actions) {
 			if session.Done() {
 				switch buf[0] {
 				case KeyEscape:
-					act.Exit(session)
+					renderer.Exit()
 
 					return
 				case KeyEnter:
 					session = newGameSession(cfg, words)
 
-					act.Next(session)
+					renderer.Next(session.Grid())
 				}
 
 				continue
@@ -72,17 +72,24 @@ func Run(in io.Reader, cfg config.Config, words []string, act Actions) {
 
 			switch buf[0] {
 			case KeyBackspace:
-				act.RetractRune(session)
+				curr, next := session.RetractRune()
+
+				if curr != nil {
+					renderer.Retract(test.Cells{curr, next})
+				}
 
 				continue
 			case KeyCtrlW:
-				act.RetractWord(session)
+				cells := session.RetractWord()
+
+				if len(cells) > 0 {
+					renderer.Retract(cells)
+				}
 
 				continue
 			case KeyTab:
-				old := session
 				session = newGameSession(cfg, words)
-				act.Reset(old, session)
+				renderer.Reset(session.Grid())
 
 				continue
 			}
@@ -90,8 +97,15 @@ func Run(in io.Reader, cfg config.Config, words []string, act Actions) {
 
 		if buf[0] > MaxControlCode && utf8.FullRune(buf[:n]) {
 			r, _ := utf8.DecodeRune(buf[:n])
+			cell, br := session.Advance(r)
 
-			act.Advance(session, r)
+			renderer.Advance(cell, br)
+
+			if session.Done() {
+				result := test.Calc(session.Duration(), session.Grid())
+
+				renderer.Print(result)
+			}
 		}
 	}
 }

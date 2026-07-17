@@ -8,6 +8,8 @@ type Cell struct {
 	Status Status
 }
 
+type Cells []*Cell
+
 func (c Cell) String() string {
 	return fmt.Sprintf("rune: %q, status: %v", c.Rune, c.Status)
 }
