@@ -11,6 +11,7 @@ import (
 	"github.com/dgf/tygo/internal/dict"
 	"github.com/dgf/tygo/internal/display"
 	"github.com/dgf/tygo/internal/game"
+	"github.com/dgf/tygo/internal/input"
 	"golang.org/x/term"
 )
 
@@ -101,6 +102,5 @@ func main() {
 		}
 	}()
 
-	renderer := display.NewRenderer(out)
-	game.Run(in, cfg, words, renderer)
+	input.Loop(in, game.NewGame(cfg, words, display.NewRenderer(out)))
 }

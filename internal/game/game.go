@@ -2,13 +2,67 @@
 package game
 
 import (
-	"io"
-	"unicode/utf8"
-
 	"github.com/dgf/tygo/internal/config"
 	"github.com/dgf/tygo/internal/gen"
 	"github.com/dgf/tygo/internal/test"
 )
+
+type Game struct {
+	factory  SessionFactory
+	renderer Renderer
+	session  *Session
+}
+
+func NewGame(cfg config.Config, words []string, renderer Renderer) *Game {
+	factory := func() *Session {
+		return newGameSession(cfg, words)
+	}
+
+	session := factory()
+	renderer.Reset(session.Grid())
+
+	return &Game{
+		factory:  factory,
+		renderer: renderer,
+		session:  session,
+	}
+}
+
+var EventActions = map[test.Event]Action{
+	test.EventBackRune: BackRune,
+	test.EventBackWord: BackWord,
+	test.EventExit:     Exit,
+	test.EventNext:     Next,
+	test.EventQuit:     Quit,
+	test.EventReset:    Reset,
+}
+
+func (g *Game) HandleEvent(e test.Event) bool {
+	action, ok := EventActions[e]
+
+	if !ok {
+		return false
+	}
+
+	g.session = action(g.session, g.renderer, g.factory)
+
+	return g.session == nil
+}
+
+func (g *Game) HandleRune(r rune) {
+	if g.session.Done() {
+		return
+	}
+
+	cell, br := g.session.Advance(r)
+	g.renderer.Advance(cell, br)
+
+	if g.session.Done() {
+		result := test.Calc(g.session.Duration(), g.session.Grid())
+
+		g.renderer.Print(result)
+	}
+}
 
 func newGameSession(cfg config.Config, words []string) *Session {
 	list := gen.SampleWeightedList(cfg.WordCount, 5, words)
@@ -33,79 +87,5 @@ func newGameSession(cfg config.Config, words []string) *Session {
 		})
 	}
 
-	grid := test.ToGrid(cfg.Width-1, list)
-
-	return NewSession(cfg.StrictMode, grid)
-}
-
-func Run(in io.Reader, cfg config.Config, words []string, renderer Renderer) {
-	buf := make([]byte, 4)
-	session := newGameSession(cfg, words)
-
-	renderer.Reset(session.Grid())
-
-	for {
-		n, err := in.Read(buf)
-		if err != nil {
-			return // stdin closed > time to leave
-		}
-
-		if n == 1 {
-			if buf[0] == KeyCtrlC || buf[0] == KeyCtrlD {
-				return
-			}
-
-			if session.Done() {
-				switch buf[0] {
-				case KeyEscape:
-					renderer.Exit()
-
-					return
-				case KeyEnter:
-					session = newGameSession(cfg, words)
-
-					renderer.Next(session.Grid())
-				}
-
-				continue
-			}
-
-			switch buf[0] {
-			case KeyBackspace:
-				curr, next := session.RetractRune()
-
-				if curr != nil {
-					renderer.Retract(test.Cells{curr, next})
-				}
-
-				continue
-			case KeyCtrlW:
-				cells := session.RetractWord()
-
-				if len(cells) > 0 {
-					renderer.Retract(cells)
-				}
-
-				continue
-			case KeyTab:
-				session = newGameSession(cfg, words)
-				renderer.Reset(session.Grid())
-
-				continue
-			}
-		}
-
-		if buf[0] > MaxControlCode && utf8.FullRune(buf[:n]) {
-			r, _ := utf8.DecodeRune(buf[:n])
-			cell, br := session.Advance(r)
-
-			renderer.Advance(cell, br)
-
-			if session.Done() {
-				result := test.Calc(session.Duration(), session.Grid())
-
-				renderer.Print(result)
-			}
-		}
-	}
+	return NewSession(cfg.StrictMode, test.ToGrid(cfg.Width-1, list))
 }

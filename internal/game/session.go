@@ -17,6 +17,8 @@ type Session struct {
 	grid     test.Grid
 }
 
+type SessionFactory func() *Session
+
 func NewSession(strict bool, grid test.Grid) *Session {
 	return &Session{
 		grid:     grid,
