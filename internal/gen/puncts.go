@@ -56,31 +56,44 @@ func PunctuationMarks(words []string, dist map[Punctuation]int) []string {
 	return result
 }
 
+type Applicator func(word string) string
+
+func Append(suffix string) Applicator {
+	return func(word string) string {
+		return word + suffix
+	}
+}
+
+func Echo(word string) string {
+	return word
+}
+
+func Enframe(prefix, suffix string) Applicator {
+	return func(word string) string {
+		return prefix + word + suffix
+	}
+}
+
+var PunctuationApplicators = map[Punctuation]Applicator{
+	Word:        Echo,
+	Period:      Append("."),
+	Comma:       Append(","),
+	Quotation:   Enframe("\"", "\""),
+	Question:    Append("?"),
+	Exclamation: Append("!"),
+	Brackets:    Enframe("[", "]"),
+	Braces:      Enframe("{", "}"),
+	Parenthesis: Enframe("(", ")"),
+	Colon:       Append(":"),
+	Semicolon:   Append(";"),
+}
+
 func applyPunctuation(punct Punctuation, word string) string {
-	switch punct {
-	case Word:
-		return word
-	case Period:
-		return word + "."
-	case Comma:
-		return word + ","
-	case Quotation:
-		return "\"" + word + "\""
-	case Question:
-		return word + "?"
-	case Exclamation:
-		return word + "!"
-	case Brackets:
-		return "[" + word + "]"
-	case Braces:
-		return "{" + word + "}"
-	case Parenthesis:
-		return "(" + word + ")"
-	case Colon:
-		return word + ":"
-	case Semicolon:
-		return word + ";"
-	default:
+	apply, ok := PunctuationApplicators[punct]
+
+	if !ok {
 		return word
 	}
+
+	return apply(word)
 }
