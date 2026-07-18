@@ -19,3 +19,15 @@ typing without leaving the shell.
 ```shell
 go run main.go -dict german -punct -nums -count 20 -top 1000
 ```
+
+## Package structure
+
+```
+               ╭─▷ gen
+          ╭─▷ game ───────╮
+main ─────┼────┴─▷ config │
+ ╰─▷ dict ├─▷ display ────┼─▷ test
+          ╰─▷ input ──────╯
+```
+
+
