@@ -8,12 +8,14 @@ type Handler interface {
 	HandleRune(r rune)
 }
 
-var KeyEvents = map[KeyCode]test.Event{
-	KeyCtrlC:     test.EventExit,
-	KeyCtrlD:     test.EventExit,
-	KeyEscape:    test.EventQuit,
-	KeyEnter:     test.EventNext,
-	KeyBackspace: test.EventBackRune,
-	KeyCtrlW:     test.EventBackWord,
-	KeyTab:       test.EventReset,
+func KeyEvents() map[KeyCode]test.Event {
+	return map[KeyCode]test.Event{
+		KeyCtrlC:     test.EventExit,
+		KeyCtrlD:     test.EventExit,
+		KeyEscape:    test.EventQuit,
+		KeyEnter:     test.EventNext,
+		KeyBackspace: test.EventBackRune,
+		KeyCtrlW:     test.EventBackWord,
+		KeyTab:       test.EventReset,
+	}
 }

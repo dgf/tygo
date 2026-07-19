@@ -74,22 +74,24 @@ func Enframe(prefix, suffix string) Applicator {
 	}
 }
 
-var PunctuationApplicators = map[Punctuation]Applicator{
-	Word:        Echo,
-	Period:      Append("."),
-	Comma:       Append(","),
-	Quotation:   Enframe("\"", "\""),
-	Question:    Append("?"),
-	Exclamation: Append("!"),
-	Brackets:    Enframe("[", "]"),
-	Braces:      Enframe("{", "}"),
-	Parenthesis: Enframe("(", ")"),
-	Colon:       Append(":"),
-	Semicolon:   Append(";"),
+func PunctuationApplicators() map[Punctuation]Applicator {
+	return map[Punctuation]Applicator{
+		Word:        Echo,
+		Period:      Append("."),
+		Comma:       Append(","),
+		Quotation:   Enframe("\"", "\""),
+		Question:    Append("?"),
+		Exclamation: Append("!"),
+		Brackets:    Enframe("[", "]"),
+		Braces:      Enframe("{", "}"),
+		Parenthesis: Enframe("(", ")"),
+		Colon:       Append(":"),
+		Semicolon:   Append(";"),
+	}
 }
 
 func applyPunctuation(punct Punctuation, word string) string {
-	apply, ok := PunctuationApplicators[punct]
+	apply, ok := PunctuationApplicators()[punct]
 
 	if !ok {
 		return word

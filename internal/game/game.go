@@ -28,17 +28,19 @@ func NewGame(cfg config.Config, words []string, renderer Renderer) *Game {
 	}
 }
 
-var EventActions = map[test.Event]Action{
-	test.EventBackRune: BackRune,
-	test.EventBackWord: BackWord,
-	test.EventExit:     Exit,
-	test.EventNext:     Next,
-	test.EventQuit:     Quit,
-	test.EventReset:    Reset,
+func EventActions() map[test.Event]Action {
+	return map[test.Event]Action{
+		test.EventBackRune: BackRune,
+		test.EventBackWord: BackWord,
+		test.EventExit:     Exit,
+		test.EventNext:     Next,
+		test.EventQuit:     Quit,
+		test.EventReset:    Reset,
+	}
 }
 
 func (g *Game) HandleEvent(e test.Event) bool {
-	action, ok := EventActions[e]
+	action, ok := EventActions()[e]
 
 	if !ok {
 		return false

@@ -18,7 +18,7 @@ func Loop(in io.Reader, handler Handler) {
 		}
 
 		if n == 1 {
-			e, ok := KeyEvents[KeyCode(buf[0])]
+			e, ok := KeyEvents()[KeyCode(buf[0])]
 
 			if ok {
 				quit = handler.HandleEvent(e)
