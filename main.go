@@ -41,28 +41,43 @@ func MustLoadWords(cfg config.Config, file string) []string {
 
 	words, err := dict.LoadFile(file)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Dictionary load failed: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Dictionary load failed: %v\n", err)
+
 		os.Exit(ExitUserError)
 	}
 
 	return words
 }
 
-func MustMakeRaw(in *os.File) (int, *term.State) {
+func MustMakeRaw(in *os.File) *term.State {
 	fd := int(in.Fd())
 
 	if !term.IsTerminal(fd) {
-		fmt.Fprintln(os.Stderr, "Use a terminal (requires a TTY)")
+		_, _ = fmt.Fprintln(os.Stderr, "Use a terminal (requires a TTY)")
+
 		os.Exit(ExitUserError)
 	}
 
-	termState, err := term.MakeRaw(fd)
+	state, err := term.MakeRaw(fd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Raw mode activation failed: %v\n", err)
+
 		os.Exit(ExitEnvironmentError)
 	}
 
-	return fd, termState
+	return state
+}
+
+func RestoreTerm(in *os.File, oldState *term.State) {
+	fd := int(in.Fd())
+
+	_ = term.Restore(fd, oldState)
+
+	if r := recover(); r != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%v - %s", r, debug.Stack())
+
+		os.Exit(ExitInternalError)
+	}
 }
 
 func main() {
@@ -91,16 +106,9 @@ func main() {
 	in := os.Stdin
 	out := os.Stdout
 	words := MustLoadWords(cfg, file)
-	fd, oldState := MustMakeRaw(in)
+	state := MustMakeRaw(in)
 
-	defer func() {
-		_ = term.Restore(fd, oldState)
-
-		if r := recover(); r != nil {
-			fmt.Fprintf(out, "%v - %s", r, debug.Stack())
-			os.Exit(ExitInternalError)
-		}
-	}()
+	defer RestoreTerm(in, state)
 
 	input.Loop(in, game.NewGame(cfg, words, display.NewRenderer(out)))
 }
