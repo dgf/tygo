@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const AverageWordLength = 5
+
 type Result struct {
 	Duration               time.Duration
 	WordsPerMinute         int // WPM = (total keys pressed / 5) / duration in minutes
@@ -38,7 +40,7 @@ func Calc(duration time.Duration, grid Grid) Result {
 		}
 	}
 
-	wpm := float64(totalKeysPressed/5) / duration.Minutes()
+	wpm := float64(totalKeysPressed/AverageWordLength) / duration.Minutes()
 	accuracy := float64(correctKeysPressed) / float64(totalKeysPressed)
 
 	return Result{

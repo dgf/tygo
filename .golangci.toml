@@ -1,0 +1,36 @@
+version = '2'
+
+[linters]
+default = 'all'
+disable = [ 'gomodguard', 'wsl' ]
+
+[linters.settings.depguard.rules.main]
+allow = [
+  '$gostd',
+  'github.com/dgf/tygo/internal',
+  'golang.org/x/term'
+]
+
+[linters.settings.goconst]
+ignore-string-values = [ 'bar', 'foo', 'one', 'two' ]
+
+[linters.settings.mnd]
+ignored-files = [ 'internal/config/default.go' ]
+ignored-functions = [ 'os.Mkdir', 'os.WriteFile' ]
+ignored-numbers = [ '2', '100' ]
+
+[[linters.settings.revive.rules]]
+name = 'exported'
+arguments = [
+  'disable-checks-on-constants',
+  'disable-checks-on-functions',
+  'disable-checks-on-methods',
+  'disable-checks-on-types',
+  'disable-checks-on-variables'
+]
+
+[linters.settings.varnamelen]
+max-distance = 10
+min-name-length = 3
+check-receiver = false
+

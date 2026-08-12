@@ -7,17 +7,19 @@ import (
 	"github.com/dgf/tygo/internal/test"
 )
 
+const InputBufferSize = 4
+
 func Loop(in io.Reader, handler Handler) {
-	buf := make([]byte, 4)
+	buf := make([]byte, InputBufferSize)
 	quit := handler.HandleEvent(test.EventNext)
 
 	for !quit {
-		n, err := in.Read(buf)
+		count, err := in.Read(buf)
 		if err != nil {
 			return // stdin closed > time to leave
 		}
 
-		if n == 1 {
+		if count == 1 {
 			e, ok := KeyEvents()[KeyCode(buf[0])]
 
 			if ok {
@@ -27,8 +29,8 @@ func Loop(in io.Reader, handler Handler) {
 			}
 		}
 
-		if buf[0] > MaxControlCode && utf8.FullRune(buf[:n]) {
-			r, _ := utf8.DecodeRune(buf[:n])
+		if buf[0] > MaxControlCode && utf8.FullRune(buf[:count]) {
+			r, _ := utf8.DecodeRune(buf[:count])
 
 			handler.HandleRune(r)
 		}
