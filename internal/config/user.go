@@ -13,33 +13,33 @@ const (
 )
 
 func LoadUserConfig() (Config, error) {
-	var c Config
-
-	d, err := os.UserConfigDir()
+	dir, err := os.UserConfigDir()
 	if err != nil {
-		return c, fmt.Errorf("user config dir access failed: %w", err)
+		return Default(), fmt.Errorf("user config dir access failed: %w", err)
 	}
 
-	b, err := os.ReadFile(path.Join(d, cfgDirName, cfgFileName))
+	data, err := os.ReadFile(path.Join(dir, cfgDirName, cfgFileName))
 	if err != nil {
-		return c, fmt.Errorf("user config read failed: %w", err)
+		return Default(), fmt.Errorf("user config read failed: %w", err)
 	}
 
-	err = json.Unmarshal(b, &c)
+	var v Config
+
+	err = json.Unmarshal(data, &v)
 	if err != nil {
-		return c, fmt.Errorf("config unmarshal failed: %w", err)
+		return v, fmt.Errorf("config unmarshal failed: %w", err)
 	}
 
-	return c, nil
+	return v, nil
 }
 
-func WriteUserConfig(c Config) error {
-	d, err := os.UserConfigDir()
+func WriteUserConfig(cfg Config) error {
+	dir, err := os.UserConfigDir()
 	if err != nil {
 		return fmt.Errorf("user config dir access failed: %w", err)
 	}
 
-	dirName := path.Join(d, cfgDirName)
+	dirName := path.Join(dir, cfgDirName)
 	dirInfo, err := os.Stat(dirName)
 
 	if os.IsNotExist(err) {
@@ -59,7 +59,7 @@ func WriteUserConfig(c Config) error {
 		return fmt.Errorf("user config app dir %q isn't accessible", dirName)
 	}
 
-	b, err := json.MarshalIndent(c, "", "  ")
+	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("user config marshal failed: %w", err)
 	}
