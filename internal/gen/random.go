@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const DefaultMinNoRepeatWindowSize = 5
+
 var randGen = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type distRange[E comparable] struct {
@@ -17,7 +19,7 @@ type distRange[E comparable] struct {
 	cumSum  int64
 }
 
-func mapRanges[E comparable](dists map[E]int) (int64, []distRange[E]) {
+func MapDistRanges[E comparable](dists map[E]int) (int64, []distRange[E]) {
 	count := len(dists)
 	ranges := make([]distRange[E], count)
 
@@ -34,43 +36,48 @@ func mapRanges[E comparable](dists map[E]int) (int64, []distRange[E]) {
 	return cumSum, ranges
 }
 
-func SampleWeighted[E comparable](count, windowSize int, dists map[E]int) []E {
-	result := make([]E, count)
-	sum, ranges := mapRanges(dists)
+func WeightRecent[E comparable](recent []distRange[E]) int64 {
+	var weight int64
+	for _, r := range recent {
+		weight += int64(r.weight)
+	}
 
-	if windowSize >= len(ranges) {
-		windowSize = min(5, len(ranges)/2)
+	return weight
+}
+
+func AddRecentWeightOffset[E comparable](number int64, recent []distRange[E]) int64 {
+	if len(recent) == 0 {
+		return number
+	}
+
+	sorted := slices.Clone(recent)
+	sort.Slice(sorted, func(i int, j int) bool {
+		return sorted[i].prevCum < sorted[j].prevCum
+	})
+
+	for _, r := range sorted {
+		if number > r.prevCum {
+			number += int64(r.weight)
+		}
+	}
+
+	return number
+}
+
+func SampleWeighted[E comparable](count, noRepeatWindow int, dists map[E]int) []E {
+	result := make([]E, count)
+	sum, ranges := MapDistRanges(dists)
+
+	if noRepeatWindow >= len(ranges) {
+		noRepeatWindow = min(DefaultMinNoRepeatWindowSize, len(ranges)/2)
 	}
 
 	ridx := 0
-	recent := make([]distRange[E], windowSize)
+	recent := make([]distRange[E], noRepeatWindow)
 
 	for i := range count {
-		var (
-			recentWeight int64
-			recentSorted []distRange[E]
-		)
-
-		if windowSize > 0 {
-			for _, r := range recent {
-				recentWeight += int64(r.weight)
-			}
-
-			recentSorted = slices.Clone(recent)
-			sort.Slice(recentSorted, func(i int, j int) bool {
-				return recentSorted[i].prevCum < recentSorted[j].prevCum
-			})
-		}
-
-		n := randGen.Int63n(sum-recentWeight) + 1
-
-		if windowSize > 0 {
-			for _, r := range recentSorted {
-				if n > r.prevCum {
-					n += int64(r.weight)
-				}
-			}
-		}
+		n := randGen.Int63n(sum-WeightRecent(recent)) + 1
+		n = AddRecentWeightOffset(n, recent)
 
 		s := sort.Search(len(ranges), func(idx int) bool {
 			return ranges[idx].cumSum >= n
@@ -79,9 +86,9 @@ func SampleWeighted[E comparable](count, windowSize int, dists map[E]int) []E {
 		selected := ranges[s]
 		result[i] = selected.value
 
-		if windowSize > 0 {
+		if noRepeatWindow > 0 {
 			recent[ridx] = selected
-			ridx = (ridx + 1) % windowSize
+			ridx = (ridx + 1) % noRepeatWindow
 		}
 	}
 
