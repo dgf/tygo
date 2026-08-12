@@ -9,74 +9,71 @@ import (
 func TestSampleWeightedDist(t *testing.T) {
 	t.Parallel()
 
-	c := 100
-	d := map[string]int{"foo": 7, "bar": 3}
+	count := 100
+	dist := map[string]int{"foo": 7, "bar": 3}
+	list := gen.SampleWeightedDist(count, dist)
 
-	r := gen.SampleWeightedDist(c, d)
-
-	if c != len(r) {
-		t.Fatalf("expected %d results, got: %d", c, len(r))
+	if count != len(list) {
+		t.Fatalf("expected %d results, got: %d", count, len(list))
 	}
 
-	counts := make(map[string]int, len(d))
-	for _, a := range r {
+	counts := make(map[string]int, len(dist))
+	for _, a := range list {
 		counts[a]++
 	}
 
-	if counts["foo"] < c/2 {
-		t.Errorf("expected more than %d of foo, got %d", c/2, counts["foo"])
+	if counts["foo"] < count/2 {
+		t.Errorf("expected more than %d of foo, got %d", count/2, counts["foo"])
 	}
 
-	if counts["bar"] > c/2 {
-		t.Errorf("expected less than %d of bar, got %d", c/2, counts["bar"])
+	if counts["bar"] > count/2 {
+		t.Errorf("expected less than %d of bar, got %d", count/2, counts["bar"])
 	}
 }
 
 func TestSampleWeightedList(t *testing.T) {
 	t.Parallel()
 
-	c := 1000
-	d := []string{"foo", "bar"}
+	count := 1000
+	words := []string{"foo", "bar"}
+	list := gen.SampleWeightedList(count, 0, words)
 
-	r := gen.SampleWeightedList(c, 0, d)
-
-	if c != len(r) {
-		t.Fatalf("expected %d results, got: %d", c, len(r))
+	if count != len(list) {
+		t.Fatalf("expected %d results, got: %d", count, len(list))
 	}
 
-	counts := make(map[string]int, len(d))
-	for _, a := range r {
+	counts := make(map[string]int, len(words))
+	for _, a := range list {
 		counts[a]++
 	}
 
-	if counts["foo"] < c/2 {
-		t.Errorf("expected more than %d of foo, got %d", c/2, counts["foo"])
+	if counts["foo"] < count/2 {
+		t.Errorf("expected more than %d of foo, got %d", count/2, counts["foo"])
 	}
 
-	if counts["bar"] > c/2 {
-		t.Errorf("expected less than %d of bar, got %d", c/2, counts["bar"])
+	if counts["bar"] > count/2 {
+		t.Errorf("expected less than %d of bar, got %d", count/2, counts["bar"])
 	}
 }
 
 func TestSampleWeightedList_UniqLenMinusOne(t *testing.T) {
 	t.Parallel()
 
-	c := 100
-	d := []string{"one", "two", "foo", "bar", "baz"}
+	count := 100
+	words := []string{"one", "two", "foo", "bar", "baz"}
+	list := gen.SampleWeightedList(count, len(words)-1, words)
 
-	r := gen.SampleWeightedList(c, len(d)-1, d)
-
-	if c != len(r) {
-		t.Fatalf("expected %d results, got: %d", c, len(r))
+	if count != len(list) {
+		t.Fatalf("expected %d results, got: %d", count, len(list))
 	}
 
-	wordCounts := make(map[string]int, len(d))
-	for _, w := range r {
+	wordCounts := make(map[string]int, len(words))
+	for _, w := range list {
 		wordCounts[w]++
 	}
 
-	s := c / len(d)
-	for _, w := range d {
+	s := count / len(words)
+	for _, w := range words {
 		if wordCounts[w] != s {
 			t.Errorf("expected %d results for %q, got: %d", s, w, wordCounts[w])
 		}
