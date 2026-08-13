@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const DefaultMinNoRepeatWindowSize = 5
+const MaxNoRepeatWindowSizeFallback = 5
 
 var randGen = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -69,7 +69,7 @@ func SampleWeighted[E comparable](count, noRepeatWindow int, dists map[E]int) []
 	sum, ranges := MapDistRanges(dists)
 
 	if noRepeatWindow >= len(ranges) {
-		noRepeatWindow = min(DefaultMinNoRepeatWindowSize, len(ranges)/2)
+		noRepeatWindow = min(MaxNoRepeatWindowSizeFallback, len(ranges)/2)
 	}
 
 	ridx := 0
