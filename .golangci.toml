@@ -4,6 +4,14 @@ version = '2'
 default = 'all'
 disable = [ 'gomodguard', 'wsl' ]
 
+[[linters.exclusions.rules]]
+path = 'internal/gen/random.go'
+linters = [ 'gochecknoglobals' ]
+
+[[linters.exclusions.rules]]
+path = 'internal/test/line.go'
+linters = [ 'prealloc' ]
+
 [linters.settings.depguard.rules.main]
 allow = [
   '$gostd',
@@ -13,6 +21,9 @@ allow = [
 
 [linters.settings.goconst]
 ignore-string-values = [ 'bar', 'foo', 'one', 'two' ]
+
+[linters.settings.gosec]
+excludes = [ 'G404' ]
 
 [linters.settings.mnd]
 ignored-files = [ 'internal/config/default.go' ]
@@ -30,7 +41,10 @@ arguments = [
 ]
 
 [linters.settings.varnamelen]
-max-distance = 10
+max-distance = 17
 min-name-length = 3
 check-receiver = false
+ignore-decls = [
+  'r rune'
+]
 
