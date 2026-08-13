@@ -2,23 +2,25 @@ package dict
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 )
 
 func LoadFile(name string) ([]string, error) {
-	data, err := os.ReadFile(name)
+	data, err := os.ReadFile(filepath.Clean(name))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read file failed: %w", err)
 	}
 
-	var lf struct {
+	var v struct {
 		Words []string `json:"words"`
 	}
 
-	err = json.Unmarshal(data, &lf)
+	err = json.Unmarshal(data, &v)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal JSON failed: %w", err)
 	}
 
-	return lf.Words, nil
+	return v.Words, nil
 }
