@@ -18,7 +18,15 @@ func LoadUserConfig() (Config, error) {
 		return Default(), fmt.Errorf("user config dir access failed: %w", err)
 	}
 
-	data, err := os.ReadFile(path.Join(dir, cfgDirName, cfgFileName))
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return Default(), fmt.Errorf("user config dir open failed: %w", err)
+	}
+	defer func() {
+		_ = root.Close()
+	}()
+
+	data, err := root.ReadFile(path.Join(cfgDirName, cfgFileName))
 	if err != nil {
 		return Default(), fmt.Errorf("user config read failed: %w", err)
 	}
