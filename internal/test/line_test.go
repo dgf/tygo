@@ -10,14 +10,12 @@ import (
 func TestToLines(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
+	for _, testCase := range []struct {
 		name  string
 		runes int
 		words []string
 		lines []test.Line
-	}
-
-	for _, tc := range []testCase{
+	}{
 		{
 			"empty", 1,
 			[]string{},
@@ -49,12 +47,12 @@ func TestToLines(t *testing.T) {
 			[]test.Line{{{''}, {'ä', 'ö', 'ü', 'ß'}}, {{'☠'}}},
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			actual := test.ToLines(tc.runes, tc.words)
-			if !reflect.DeepEqual(tc.lines, actual) {
-				t.Errorf("invalid line transform\nwant:\n%U\ngot:\n%U\n", tc.lines, actual)
+			actual := test.ToLines(testCase.runes, testCase.words)
+			if !reflect.DeepEqual(testCase.lines, actual) {
+				t.Errorf("invalid line transform\nwant:\n%U\ngot:\n%U\n", testCase.lines, actual)
 			}
 		})
 	}
