@@ -12,6 +12,14 @@ const (
 	cfgFileName = "config.json"
 )
 
+type UserDirAccessError struct {
+	Dir string
+}
+
+func (e *UserDirAccessError) Error() string {
+	return fmt.Sprintf("user config app dir %q isn't accessible", e.Dir)
+}
+
 func LoadUserConfig() (Config, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -64,7 +72,7 @@ func WriteUserConfig(cfg Config) error {
 	}
 
 	if !dirInfo.IsDir() {
-		return fmt.Errorf("user config app dir %q isn't accessible", dirName)
+		return &UserDirAccessError{Dir: dirName}
 	}
 
 	b, err := json.MarshalIndent(cfg, "", "  ")
