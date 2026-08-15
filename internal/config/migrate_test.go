@@ -9,6 +9,7 @@ import (
 )
 
 const lastWorkingConfigExample = `{
+  "version": 1,
   "dict": "german",
   "strict": false,
   "top": 100,
@@ -33,7 +34,7 @@ const lastWorkingConfigExample = `{
 }`
 
 const nextSavedConfigExample = `{
-  "version": 1,
+  "version": 2,
   "dict": "german",
   "strict": false,
   "top": 100,
@@ -41,6 +42,7 @@ const nextSavedConfigExample = `{
   "width": 30,
   "nums": true,
   "punct": true,
+  "noRepeat": 5,
   "freqs": {
     "word": 85,
     "number": 7,
@@ -81,5 +83,16 @@ func TestMigrate(t *testing.T) {
 
 	if strings.Compare(string(migratedConfig), nextSavedConfigExample) != 0 {
 		t.Errorf("invalid migration result, got:\n%v\n\nwant:\n%v", string(migratedConfig), nextSavedConfigExample)
+	}
+}
+
+func TestDefaultVersion(t *testing.T) {
+	t.Parallel()
+
+	defaultVersion := config.Default().Version
+	migrateVersion := len(config.Migrations())
+
+	if defaultVersion != migrateVersion {
+		t.Errorf("Update default version, want: %d, got: %d", migrateVersion, defaultVersion)
 	}
 }

@@ -67,7 +67,7 @@ func (g *Game) HandleRune(r rune) {
 }
 
 func newGameSession(cfg config.Config, words []string) *Session {
-	list := gen.SampleWeightedList(cfg.WordCount, 5, words)
+	list := gen.SampleWeightedList(cfg.WordCount, cfg.NoRepeat, words)
 
 	if cfg.Numbers {
 		list = gen.WithNumbers(cfg.Distribution.Number, list)

@@ -7,6 +7,9 @@ func Migrations() []Migration {
 		func(cfg *Config) {
 			// first one to start with
 		},
+		func(cfg *Config) {
+			cfg.NoRepeat = Default().NoRepeat
+		},
 	}
 }
 

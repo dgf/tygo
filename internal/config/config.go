@@ -25,5 +25,6 @@ type Config struct {
 	Width        int          `json:"width"`
 	Numbers      bool         `json:"nums"`
 	Punctuation  bool         `json:"punct"`
+	NoRepeat     int          `json:"noRepeat"`
 	Distribution Distribution `json:"freqs"`
 }
