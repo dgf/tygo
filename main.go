@@ -34,6 +34,22 @@ func Dictionary(name string) dict.Dictionary {
 	}
 }
 
+func MustLoadConfig() config.Config {
+	cfg, loadErr := config.LoadUserConfig()
+	if loadErr != nil {
+		cfg = config.Default()
+		_ = config.WriteUserConfig(cfg)
+
+		return cfg
+	}
+
+	if config.Migrate(&cfg) {
+		_ = config.WriteUserConfig(cfg)
+	}
+
+	return cfg
+}
+
 func MustLoadWords(cfg config.Config, file string) []string {
 	if len(file) == 0 {
 		return dict.LoadDict(Dictionary(cfg.Dictionary), cfg.TopWords)
@@ -81,11 +97,7 @@ func RestoreTerm(in *os.File, oldState *term.State) {
 }
 
 func main() {
-	cfg, loadErr := config.LoadUserConfig()
-	if loadErr != nil {
-		cfg = config.Default()
-		_ = config.WriteUserConfig(cfg)
-	}
+	cfg := MustLoadConfig()
 
 	var file string
 

@@ -17,6 +17,7 @@ type Distribution struct {
 }
 
 type Config struct {
+	Version      int          `json:"version"`
 	Dictionary   string       `json:"dict"`
 	StrictMode   bool         `json:"strict"`
 	TopWords     int          `json:"top"`

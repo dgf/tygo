@@ -2,6 +2,7 @@ package config
 
 func Default() Config {
 	return Config{
+		Version:     1,
 		Dictionary:  "english",
 		StrictMode:  false,
 		TopWords:    100,
